@@ -1,0 +1,23 @@
+n*#*#
+*.#*
+*.beam
+*.dump
+*.terms
+*~
+TAGS
+tags
+var
+ebin/
+ebin/*.beam
+ebin/*.erl
+shell
+lib/*/ebin/*.erl
+
+## Script used for fetching svn externals
+lib/git-svn-*
+
+## Variable Config
+conf/sys.config
+
+## Dialyzer output
+priv/dialyzer/output.dialyzer.*

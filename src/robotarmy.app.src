@@ -1,0 +1,12 @@
+{application, robotarmy,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { robotarmy_app, []}},
+  {env, []}
+ ]}.
