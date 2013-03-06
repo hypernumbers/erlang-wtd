@@ -1,5 +1,6 @@
 -module(mwaahah).
 
+-mission({tinderbox, [kill/1]}).
 -mission({baddy, [kill/1]}).
 -mission({baddy, [kill/0]}).
 

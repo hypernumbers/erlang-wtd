@@ -10,10 +10,12 @@
 
 -behaviour(gen_server).
 -behaviour(minion).
--mission(tinderbox).
+-mission({tinderbox, [banjo/0]}).
 
 %% API
 -export([start_link/0]).
+
+-export([banjo/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -26,6 +28,9 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+banjo() ->
+    ok.
 
 %%--------------------------------------------------------------------
 %% @doc

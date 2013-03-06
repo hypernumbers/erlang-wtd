@@ -1,1 +1,1 @@
-erl -pa ebin/ -s robotarmy_app
+erl -pa apps/*/ebin deps/*/ebin -s robotarmy_app

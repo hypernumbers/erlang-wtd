@@ -4,27 +4,38 @@
          crunk/0
         ]).
 
--record(crunk, {
-          behaviours,
-          functions
-          }).
-
 -record(extract, {
           behaviour,
-          missions  = []
+          missions           = []
          }).
 
 crunk() ->
-    Files = filelib:wildcard("src/*.erl"),
+    Dir = code:lib_dir(wtd),
+    Files = lists:merge([filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
+                         filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")]),
     Missions = extract(Files),
-    io:format("Missions is ~p~n", [Missions]),
-    Inv = invert(Missions, dict:new()),
-    io:format("Inv is ~p~n", [Inv]).
+    invert(Missions, dict:new()).
 
-invert([], Acc) ->
-    Acc;
-invert([{_File, #extract{behaviour = _B, missions = _M}} | T], Acc) ->
-    invert(T, Acc).
+invert([], Dict) ->
+    dict:to_list(Dict);
+invert([{File, #extract{behaviour = B, missions = M}} | T], Dict) ->
+    NewDict = insert(M, B, File, Dict),
+    invert(T, NewDict).
+
+insert([], _B, _File, Dict) ->
+    Dict;
+insert([{Mission, Fns} | T], Behaviour, File, Dict) ->
+    Type = case Behaviour of
+               undefined -> module;
+               _         -> Behaviour
+           end,
+    NewVals = case dict:is_key(Mission, Dict) of
+                  true  -> {ok, Vals} = dict:find(Mission, Dict),
+                           [{File, Fns, Type} | Vals];
+                  false -> [{File, Fns, Type}]
+              end,
+    NewDict = dict:store(Mission, NewVals, Dict),
+    insert(T, Behaviour, File, NewDict).
 
 extract(Files) ->
     SyntaxFiles = [compile(X) || X <- Files],
@@ -39,17 +50,17 @@ extract_m2([{ok, [], Syn} | T], Acc) ->
     extract_m2(T, [NewAcc | Acc]).
 
 extract_m3([], File, Acc) ->
-    {strip(File), chunck(Acc)};
+    {strip(File), chunk(Acc)};
 extract_m3([{attribute, 1, file, {File, 1}} | T], _, Acc) ->
     extract_m3(T, File, Acc);
-extract_m3([{attribute, _, behaviour, {minion, M}} | T], File, Acc) ->
-    extract_m3(T, File, [{minion, M} | Acc]);
-extract_m3([{attribute, _, behaviour, {evilplan, M}} | T], File, Acc) ->
-    extract_m3(T, File, [{evilplan, M} | Acc]);
-extract_m3([{attribute, _, behaviour, {hairyarsedpict, M}} | T], File, Acc) ->
-    extract_m3(T, File, [{hairyarsedpict, M} | Acc]);
-extract_m3([{attribute, _, behaviour, {bossman, M}} | T], File, Acc) ->
-    extract_m3(T, File, [{bossman, M} | Acc]);
+extract_m3([{attribute, _, behaviour, minion} | T], File, Acc) ->
+    extract_m3(T, File, [minion | Acc]);
+extract_m3([{attribute, _, behaviour, evilplan} | T], File, Acc) ->
+    extract_m3(T, File, [evilplan | Acc]);
+extract_m3([{attribute, _, behaviour, hairyarsedpict} | T], File, Acc) ->
+    extract_m3(T, File, [hairyarsedpict | Acc]);
+extract_m3([{attribute, _, behaviour, bossman} | T], File, Acc) ->
+    extract_m3(T, File, [bossman | Acc]);
 extract_m3([{attribute, _, export, List} | T], File, Acc) ->
     extract_m3(T, File, [{export, List} | Acc]);
 extract_m3([{attribute, _, mission, Struct} | T], File, Acc) ->
@@ -74,20 +85,20 @@ strip(File) ->
     [H2 | _T2] = string:tokens(H1, "."),
     H2.
 
-chunck(List) ->
+chunk(List) ->
     make_record(List, [], [], []).
 
 make_record([], A1, A2, A3) ->
     mk(A1, lists:merge(A2), consolidate(A3));
-make_record([{Type, _} = Ty | T], A1, A2, A3)
+make_record([Type | T], A1, A2, A3)
   when Type == minion
-       orelse Type == evilpaln
+       orelse Type == evilplan
        orelse Type == hairyarsedpick
        orelse Type == bossman ->
-    make_record(T, [Ty | A1], A2, A3);
+    make_record(T, [Type | A1], A2, A3);
 make_record([{export, Exports} | T], A1, A2, A3) ->
     make_record(T, A1, [Exports | A2], A3);
-make_record([{mission, Missions} | T], A1, A2, A3) ->
+make_record([{mission, {_, _} = Missions} | T], A1, A2, A3) ->
     make_record(T, A1, A2, [Missions | A3]).
 
 consolidate(List) ->
