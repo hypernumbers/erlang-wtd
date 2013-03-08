@@ -14,7 +14,35 @@ crunk() ->
     Files = lists:merge([filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
                          filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")]),
     Missions = extract(Files),
-    invert(Missions, dict:new()).
+    Crunk = invert(Missions, dict:new()),
+    ok = write_crunk(Crunk, Dir),
+    ok = create_clefs(Dir).
+
+create_clefs(Dir) ->
+    Path = Dir ++ "/../../cbin/",
+    Files = [Path ++ "outbound.clef", Path ++ "inbound.clef"],
+    [ok = make_if_doesnt_exist(X) || X <- Files],
+    ok.
+
+make_if_doesnt_exist(FileName) ->
+    case filelib:is_file(FileName) of
+        true  -> ok;
+        false -> Hdr = io_lib:format("%% -*- erlang -*-~n{"
+                        ++ "\"master@erlangwtd.com\","
+                        ++ "\"global\","
+                        ++ "\"submission\"}.~n", []),
+                 ok = file:write_file(FileName, Hdr)
+    end.
+
+write_crunk([], _Dir) ->
+    ok;
+write_crunk([{Mission, Crunk} | T], Dir) ->
+    FileName = Dir ++ "/../../cbin/" ++ atom_to_list(Mission) ++ ".crunk",
+    ok = filelib:ensure_dir(FileName),
+    Hdr = io_lib:format("%% -*- erlang -*-~n", []),
+    Terms = lists:flatten([Hdr | [io_lib:format("~p.~n", [X]) || X <- Crunk]]),
+    ok = file:write_file(FileName, Terms),
+    write_crunk(T, Dir).
 
 invert([], Dict) ->
     dict:to_list(Dict);
@@ -83,7 +111,7 @@ compile(File) -> compile:file(File, [to_pp, binary]).
 strip(File) ->
     [H1 | _T1] = lists:reverse(string:tokens(File, "/")),
     [H2 | _T2] = string:tokens(H1, "."),
-    H2.
+    list_to_existing_atom(H2).
 
 chunk(List) ->
     make_record(List, [], [], []).
