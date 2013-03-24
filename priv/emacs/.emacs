@@ -53,7 +53,7 @@
 (defun erlang-wtd (wtd-type)
   (format "in erlang-wtd")
   (cd "~/erlang-wtd/")
-  (compile (concat "./rebar " wtd-type))
+  (compile (concat "rebar " wtd-type))
   (other-window 1)
   (goto-char (point-max))
   (other-window -1))
