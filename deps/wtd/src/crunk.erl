@@ -22,11 +22,10 @@
 
 crunk() ->
     Dir = code:lib_dir(wtd),
-    % Files = lists:merge([filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
-    %         filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")]),
-    Files = ["/home/gordon/erlang-wtd/deps/wtd/src/junk.erl"],
+    Files = lists:merge([filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
+                         filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")]),
     Missions = extract_missions(Files),
-    io:format("Missions is ~p~n", [Missions]),
+    %% TODO fix the inversion to include documentation and stuff
     Crunk = invert_data_structure(Missions, dict:new()),
     ok = write_crunk(Crunk, Dir),
     ok = create_clefs(Dir).
