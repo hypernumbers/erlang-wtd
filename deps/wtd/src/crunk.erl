@@ -81,14 +81,14 @@ extract_m3([], File, Acc) ->
     {strip(File), chunk(Acc)};
 extract_m3([{attribute, 1, file, {File, 1}} | T], _, Acc) ->
     extract_m3(T, File, Acc);
-extract_m3([{attribute, _, behaviour, minion} | T], File, Acc) ->
-    extract_m3(T, File, [minion | Acc]);
-extract_m3([{attribute, _, behaviour, evilplan} | T], File, Acc) ->
-    extract_m3(T, File, [evilplan | Acc]);
-extract_m3([{attribute, _, behaviour, hairyarsedpict} | T], File, Acc) ->
-    extract_m3(T, File, [hairyarsedpict | Acc]);
-extract_m3([{attribute, _, behaviour, bossman} | T], File, Acc) ->
-    extract_m3(T, File, [bossman | Acc]);
+extract_m3([{attribute, _, behaviour, wtd_server} | T], File, Acc) ->
+    extract_m3(T, File, [wtd_server | Acc]);
+extract_m3([{attribute, _, behaviour, wtd_fsm} | T], File, Acc) ->
+    extract_m3(T, File, [wtd_fsm | Acc]);
+extract_m3([{attribute, _, behaviour, wtd_event} | T], File, Acc) ->
+    extract_m3(T, File, [wtd_event | Acc]);
+extract_m3([{attribute, _, behaviour, wtd_supervisor} | T], File, Acc) ->
+    extract_m3(T, File, [wtd_supervisor | Acc]);
 extract_m3([{attribute, _, export, List} | T], File, Acc) ->
     extract_m3(T, File, [{export, List} | Acc]);
 extract_m3([{attribute, _, mission, Struct} | T], File, Acc) ->
@@ -119,10 +119,10 @@ chunk(List) ->
 make_record([], A1, A2, A3) ->
     mk(A1, lists:merge(A2), consolidate(A3));
 make_record([Type | T], A1, A2, A3)
-  when Type == minion
-       orelse Type == evilplan
-       orelse Type == hairyarsedpick
-       orelse Type == bossman ->
+  when Type == wtd_server
+       orelse Type == wtd_fsm
+       orelse Type == wtd_event
+       orelse Type == wtd_supervisor ->
     make_record(T, [Type | A1], A2, A3);
 make_record([{export, Exports} | T], A1, A2, A3) ->
     make_record(T, A1, [Exports | A2], A3);

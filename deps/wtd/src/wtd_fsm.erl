@@ -1,4 +1,4 @@
--module(evilplan).
+-module(wtd_fsm).
 -export([behaviour_info/1]).
 
 -spec behaviour_info(atom()) -> 'undefined' | [{atom(), arity()}].
