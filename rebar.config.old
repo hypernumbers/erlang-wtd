@@ -11,7 +11,7 @@
 %% Erlang files to compile before the rest. Rebar automatically compiles
 %% parse_transforms and custom behaviours before anything other than the files
 %% in this list.
-{erl_first_files, ["bossman", "minion", "evilplan", "hairyarsedpict"]}.
+{erl_first_files, ["wtd_supervisor", "wtd_server", "wtd_fsm", "wtd_event"]}.
 
 %% Erlang compiler options
 {erl_opts, [no_debug_info,
@@ -32,9 +32,12 @@
 %% == Dependencies ==
 
 {deps, [
+<<<<<<< HEAD
         {'erlang-history', "", {git, "https://github.com/hypernumbers/erlang-history.git", {branch, "master"}}, [raw]},
         {mochiweb, "", {git, "https://github.com/mochi/mochiweb", {branch, "master"}}},
         {cowboy, "", {git, "https://github.com/extend/cowboy.git", {branch, "master"}}}
+=======
+>>>>>>> 3a2ff81c1919a9657428a6e65d9c09d1dd74520b
        ]}.
 
 %% == Pre/Post Command Hooks ==
@@ -43,6 +46,6 @@
 
 % {post_hooks, [{compile, "priv/crunk"}]}.
 
-{plugins, [install_plugin]}.
+{plugins, [configure_emacs]}.
 
 {plugin_dir, "plugins/"}.

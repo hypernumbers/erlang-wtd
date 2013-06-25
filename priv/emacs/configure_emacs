@@ -1,0 +1,45 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+
+main([]) ->
+    case os:getenv("USER") of
+        "root" -> io:format("Cannot run this as root~n");
+        _      -> EmacsMode = get_path_to_emacs_mode(),
+                  DotEmacs = read_dot_emacs_file_template(),
+                  NewDotEmacs = substitute(DotEmacs, EmacsMode),
+                  ok = install(NewDotEmacs)
+    end.
+
+get_path_to_emacs_mode() ->
+    %% the emacs mode file is part of the tools application in erlang
+    %% we need to work out which version of tools is installed
+    Location = code:where_is_file("tools.app"),
+    ListPath = string:tokens(Location, "/"),
+    ["tools.app", "ebin" | ReverseListPath] = lists:reverse(ListPath),
+    Path = "/" ++ string:join(lists:reverse(ReverseListPath), "/"),
+    _EmacsMode = Path ++ "/emacs".
+
+read_dot_emacs_file_template() ->
+    Script = escript:script_name(),
+    FileName = filename:dirname(Script) ++ "/.emacs",
+    {ok, Binary} = file:read_file(FileName),
+    _Contents = binary_to_list(Binary).
+
+substitute(Contents, Path) ->
+    % put the actual path to the emacs mode in the file
+    Opts = [{return, list}],
+    QPath = "\"" ++ Path ++ "\"",
+    _NewEmacs = re:replace(Contents, "\\${emacsfile}", QPath, Opts).
+
+install(Binary) ->
+    % write the file to your home directory
+    % but only if you don't have a .emacs file
+		{ok, [[Home]]} = init:get_argument(home),
+    DotEmacs = Home ++ "/.emacs",
+    DotEmacsExists = filelib:is_regular(DotEmacs),
+    case DotEmacsExists of
+        true ->
+            io:format(".emacs already exists - not being installed...~n");
+        false ->
+            file:write_file(DotEmacs, list_to_binary(Binary))
+    end.

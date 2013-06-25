@@ -6,15 +6,27 @@
 
 -record(extract, {
           behaviour,
-          missions           = []
+          missions      = [],
+          documentation = []
          }).
+
+-record(doco,
+        {
+          module,
+          name,
+          arity,
+          doc  = [],
+          spec = [],
+          fn   = []
+        }).
 
 crunk() ->
     Dir = code:lib_dir(wtd),
     Files = lists:merge([filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
                          filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")]),
-    Missions = extract(Files),
-    Crunk = invert(Missions, dict:new()),
+    Missions = extract_missions(Files),
+    %% TODO fix the inversion to include documentation and stuff
+    Crunk = invert_data_structure(Missions, dict:new()),
     ok = write_crunk(Crunk, Dir),
     ok = create_clefs(Dir).
 
@@ -44,15 +56,16 @@ write_crunk([{Mission, Crunk} | T], Dir) ->
     ok = file:write_file(FileName, Terms),
     write_crunk(T, Dir).
 
-invert([], Dict) ->
+invert_data_structure([], Dict) ->
     dict:to_list(Dict);
-invert([{File, #extract{behaviour = B, missions = M}} | T], Dict) ->
-    NewDict = insert(M, B, File, Dict),
-    invert(T, NewDict).
+invert_data_structure([{File, #extract{behaviour = B, missions = M}} | T],
+                     Dict) ->
+    NewDict = insert_into_dict(M, B, File, Dict),
+    invert_data_structure(T, NewDict).
 
-insert([], _B, _File, Dict) ->
+insert_into_dict([], _B, _File, Dict) ->
     Dict;
-insert([{Mission, Fns} | T], Behaviour, File, Dict) ->
+insert_into_dict([{Mission, Fns} | T], Behaviour, File, Dict) ->
     Type = case Behaviour of
                undefined -> module;
                _         -> Behaviour
@@ -63,40 +76,52 @@ insert([{Mission, Fns} | T], Behaviour, File, Dict) ->
                   false -> [{File, Fns, Type}]
               end,
     NewDict = dict:store(Mission, NewVals, Dict),
-    insert(T, Behaviour, File, NewDict).
+    insert_into_dict(T, Behaviour, File, NewDict).
 
-extract(Files) ->
-    SyntaxFiles = [compile(X) || X <- Files],
-    extract_missions(SyntaxFiles).
+extract_missions(Files) ->
+    List = [{edoc:read_source(X), edoc:read_comments(X)} || X <- Files],
+    SyntaxFiles = merge_compile_and_documentation(List),
+    extract_m2(SyntaxFiles).
 
-extract_missions(Syntax) -> eliminate(extract_m2(Syntax, [])).
+extract_m2(Syntax) -> eliminate_undefined_missions(extract_m3(Syntax, [])).
 
-extract_m2([], Acc) ->
+extract_m3([], Acc) ->
     lists:reverse(Acc);
-extract_m2([{ok, [], Syn} | T], Acc) ->
-    NewAcc = extract_m3(Syn, "", []),
-    extract_m2(T, [NewAcc | Acc]).
+extract_m3([H | T], Acc) ->
+    NewAcc = e_m4(H, "", "", []),
+    extract_m3(T, [NewAcc | Acc]).
 
-extract_m3([], File, Acc) ->
-    {strip(File), chunk(Acc)};
-extract_m3([{attribute, 1, file, {File, 1}} | T], _, Acc) ->
-    extract_m3(T, File, Acc);
-extract_m3([{attribute, _, behaviour, minion} | T], File, Acc) ->
-    extract_m3(T, File, [minion | Acc]);
-extract_m3([{attribute, _, behaviour, evilplan} | T], File, Acc) ->
-    extract_m3(T, File, [evilplan | Acc]);
-extract_m3([{attribute, _, behaviour, hairyarsedpict} | T], File, Acc) ->
-    extract_m3(T, File, [hairyarsedpict | Acc]);
-extract_m3([{attribute, _, behaviour, bossman} | T], File, Acc) ->
-    extract_m3(T, File, [bossman | Acc]);
-extract_m3([{attribute, _, export, List} | T], File, Acc) ->
-    extract_m3(T, File, [{export, List} | Acc]);
-extract_m3([{attribute, _, mission, Struct} | T], File, Acc) ->
-    extract_m3(T, File, [{mission, Struct} | Acc]);
-extract_m3([_H | T], File, Acc) ->
-    extract_m3(T, File, Acc).
+e_m4([], File, Doc, Acc) ->
+    {{File, Doc}, chunk(Acc)};
+e_m4([{docu, 1, file, Doc} | T], File, _, Acc) ->
+    e_m4(T, File, Doc, Acc);
+e_m4([{attribute, _, module, File} | T], _, Doc, Acc) ->
+    e_m4(T, File, Doc, Acc);
+e_m4([{attribute, _, behaviour, wtd_server} | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, [wtd_server | Acc]);
+e_m4([{attribute, _, behaviour, wtd_fsm} | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, [wtd_fsm | Acc]);
+e_m4([{attribute, _, behaviour, wtd_event} | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, [wtd_event | Acc]);
+e_m4([{attribute, _, behaviour, wtd_supervisor} | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, [wtd_supervisor | Acc]);
+e_m4([{attribute, _, export, List} | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, [{export, List} | Acc]);
+e_m4([{attribute, _, mission, Struct} | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, [{mission, Struct} | Acc]);
+%% a docu line can immediately a preceed a typespec or a function
+e_m4([{docu, _, D}, {attribute, _, spec, Sp} | T], File, Doc, Acc) ->
+    {{Name, Ar}, _} = Sp,
+    NewAcc = #doco{module = File, name = Name, arity = Ar, doc = D, spec = Sp},
+    e_m4(T, File, Doc, [NewAcc | Acc]);
+%% a docu line can immediately a preceed a typespec or a function
+e_m4([{docu, _, D}, {function, _, Nm, Ar, Fn} | T], File, Doc, Acc) ->
+    NewAcc = #doco{module = File, name = Nm, arity = Ar, doc = D, fn = Fn},
+    e_m4(T, File, Doc, [NewAcc | Acc]);
+e_m4([_H | T], File, Doc, Acc) ->
+    e_m4(T, File, Doc, Acc).
 
-eliminate(List) ->
+eliminate_undefined_missions(List) ->
     el2(List, []).
 
 el2([], Acc) ->
@@ -106,28 +131,52 @@ el2([{_, #extract{behaviour = undefined, missions = []}} | T], Acc) ->
 el2([H | T], Acc) ->
     el2(T, [H | Acc]).
 
-compile(File) -> compile:file(File, [to_pp, binary]).
+merge_compile_and_documentation(List) -> merge2(List, []).
 
-strip(File) ->
-    [H1 | _T1] = lists:reverse(string:tokens(File, "/")),
-    [H2 | _T2] = string:tokens(H1, "."),
-    list_to_existing_atom(H2).
+merge2([], Acc) ->
+    lists:reverse(Acc);
+merge2([{Syntax, Docs} | T], Acc) ->
+    NewAcc = merge3(Syntax, Docs, []),
+    merge2(T, [NewAcc | Acc]).
+
+merge3([], [], Acc) ->
+    lists:reverse(Acc);
+merge3([], [Doc | T], Acc) ->
+    merge3([], T, [Doc | Acc]);
+merge3([Syn | T], [], Acc) ->
+    merge3(T, [], [Syn | Acc]);
+merge3([{attribute, N, _, _} = Syn | T1], [{M, _, _, _} = Doc | T2], Acc)
+  when N < M ->
+    merge3(T1, [Doc | T2], [Syn | Acc]);
+merge3([{_, N, _, _, _} = Syn | T1], [{M, _, _, _} = Doc | T2], Acc)
+  when N < M ->
+    merge3(T1, [Doc | T2], [Syn | Acc]);
+merge3([{attribute, N, _, _} = Syn | T1], [{M, _, _, List} | T2], Acc)
+  when N > M ->
+    NewDoc = {docu, M, List},
+    merge3([Syn | T1], T2, [NewDoc | Acc]);
+merge3([{_, N, _, _, _} = Syn | T1], [{M, _, _, List} | T2], Acc)
+  when N > M ->
+    NewDoc = {docu, M, List},
+    merge3([Syn | T1], T2, [NewDoc | Acc]).
 
 chunk(List) ->
-    make_record(List, [], [], []).
+    make_record(List, [], [], [], []).
 
-make_record([], A1, A2, A3) ->
-    mk(A1, lists:merge(A2), consolidate(A3));
-make_record([Type | T], A1, A2, A3)
-  when Type == minion
-       orelse Type == evilplan
-       orelse Type == hairyarsedpick
-       orelse Type == bossman ->
-    make_record(T, [Type | A1], A2, A3);
-make_record([{export, Exports} | T], A1, A2, A3) ->
-    make_record(T, A1, [Exports | A2], A3);
-make_record([{mission, {_, _} = Missions} | T], A1, A2, A3) ->
-    make_record(T, A1, A2, [Missions | A3]).
+make_record([], A1, A2, A3, A4) ->
+    mk(A1, lists:merge(A2), consolidate(A3), A4);
+make_record([Type | T], A1, A2, A3, A4)
+  when Type == wtd_server
+       orelse Type == wtd_fsm
+       orelse Type == wtd_event
+       orelse Type == wtd_supervisor ->
+    make_record(T, [Type | A1], A2, A3, A4);
+make_record([{export, Exports} | T], A1, A2, A3, A4) ->
+    make_record(T, A1, [Exports | A2], A3, A4);
+make_record([{mission, {_, _} = Missions} | T], A1, A2, A3, A4) ->
+    make_record(T, A1, A2, [Missions | A3], A4);
+make_record([#doco{} = D | T], A1, A2, A3, A4) ->
+    make_record(T, A1, A2, A3, [D | A4]).
 
 consolidate(List) ->
     con2(lists:sort(List), dict:new()).
@@ -143,14 +192,15 @@ con2([{Key, Val} | T], Dict) ->
     con2(T, NewDict).
 
 % there should only be one behaviour per module
-mk([], Exports, Missions) ->
+mk([], Exports, Missions, Documentation) ->
     case mk2(flatten(Missions), lists:sort(Exports)) of
-        true  -> #extract{missions = Missions};
+        true  -> #extract{missions = Missions, documentation = Documentation};
         false -> exit("invalid missions...")
     end;
-mk([Behaviour], Exports, Missions) ->
+mk([Behaviour], Exports, Missions, Documentation) ->
     case mk2(flatten(Missions), lists:sort(Exports)) of
-        true  -> #extract{behaviour = Behaviour, missions = Missions};
+        true  -> #extract{behaviour = Behaviour, missions = Missions,
+                          documentation = Documentation};
         false -> exit("invalid missions...")
     end.
 

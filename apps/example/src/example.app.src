@@ -1,0 +1,10 @@
+{application, example,
+ [
+  {description, "an example application"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]}
+ ]}.
