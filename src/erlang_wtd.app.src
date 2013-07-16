@@ -1,0 +1,12 @@
+{application, erlang_wtd,
+ [
+  {description, "erlang wtd"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { erlang_wtd_app, []}},
+  {env, []}
+ ]}.

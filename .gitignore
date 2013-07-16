@@ -12,10 +12,8 @@ cbin/
 cbin/*.crunk
 cbin/*.clef
 ebin/
-ebin/*.beam
-ebin/*.erl
+logs/
 shell
-lib/*/ebin/*.erl
 
 ## Script used for fetching svn externals
 lib/git-svn-*
