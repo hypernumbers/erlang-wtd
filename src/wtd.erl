@@ -55,16 +55,25 @@ compile() ->
     compile2(Files).
 
 compile2(Files) ->
+    %% start with some housekeeping
     Dir = code:lib_dir(wtd),
+    ok = clear_crunk(),
+    ok = maybe_create_clefs(Dir),
+
+    %% now start building the crunk
     Annotations = get_annotations(Files),
     Records = make_records(Annotations, []),
     NewRecords = validate(Records, []),
     [pretty_print("after validation", X) || X <- NewRecords],
-    Data = combine(Records, []),
-    io:format("Data is ~p~nDir is ~p", [Data, Dir]),
-    ok = write_crunk(Data, Dir),
-    ok = create_clefs(Dir),
-    ok.
+    case get_errors(NewRecords) of
+        []   -> Data = combine(NewRecords, []),
+                ok = write_crunk(Data, Dir),
+                ok;
+        Errs -> Errs
+    end.
+
+get_errors(Records) ->
+     lists:flatten([X#annotations.errors || X <- Records]).
 
 combine([], Acc) ->
     lists:reverse(Acc);
@@ -157,6 +166,8 @@ validate([#annotations{valid = false} = Rec | T], Acc) ->
     validate(T, [Rec | Acc]);
 validate([H | T], Acc) ->
     #annotations{exports = E, wtd_exports = WE, errors = Errs} = H,
+    %% FIXME - need to validate that the WTD Exports are valid (ie atom/integer)
+    %% then extract them and validate the list of exports against normal exports
     NewRec = case validate_exports(WE, E, []) of
                  []      -> H;
                  ErrList -> NewErrs = lists:flatten([ErrList | Errs]),
@@ -167,11 +178,18 @@ validate([H | T], Acc) ->
 validate_exports([], _, Errs) ->
     Errs;
 validate_exports([H | T], [], Errs) ->
-    validate_exports(T, [], [{function_not_exported, H} | Errs]);
+    Error = case get_export_validity(H) of
+                valid        -> {function_not_exported, H};
+                {invalid, I} -> {I, H}
+            end,
+    validate_exports(T, [], [Error | Errs]);
 validate_exports([H | T1], [H | T2], Errs) ->
     validate_exports(T1, T2, Errs);
 validate_exports(L, [_H | T], Errs) ->
     validate_exports(L, T, Errs).
+
+get_export_validity(WTD_Export) ->
+    io:format("WTD_Export is ~p~n
 
 get_annotations(Files) ->
     SyntaxFiles = [{X, compile_to_ast(X)} || X <- Files],
@@ -202,7 +220,7 @@ get_a3([{attribute, N, wtd_export, Struct} | T],  Acc) ->
 get_a3([_H | T],  Acc) ->
     get_a3(T, Acc).
 
-create_clefs(Dir) ->
+maybe_create_clefs(Dir) ->
     Path = Dir ++ "/cbin/",
     Files = [Path ++ "outbound.clef", Path ++ "inbound.clef"],
     [ok = make_if_doesnt_exist(X) || X <- Files],
@@ -287,3 +305,11 @@ pretty_print(Msg, Rec) when is_list(Msg) and is_record(Rec, annotations) ->
               ++ "- Errors         : ~p~n"
               ++ "- Valid?         : ~p~n",
               [Msg, FN, Exp, WTD_Exp, B, WTD_Bs, Errs, V]).
+
+clear_crunk() ->
+    Dir = code:lib_dir(wtd),
+    io:format("Dir is ~p~n", [Dir]),
+    Files = filelib:wildcard(Dir ++ "/cbin/*.crunk"),
+    io:format("Files for deletion is is ~p~n", [Files]),
+    [ok = file:delete(X) || X <- Files],
+    ok.
