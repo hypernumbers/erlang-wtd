@@ -45,30 +45,32 @@
          }).
 
 compile(Dir) ->
+    io:format("Dir is ~p~n", [Dir]),
     Files = filelib:wildcard(Dir ++ "/*.erl"),
+    io:format("Compiling ~p~n", [Files]),
     compile2(Files).
 
 compile() ->
-    Dir = code:lib_dir(wtd),
-    Files = lists:merge([filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
-                         filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")]),
+    Dir = get_root_dir(),
+    Files = lists:merge([
+                         filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
+                         filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")
+                        ]),
     compile2(Files).
 
 compile2(Files) ->
-    %% start with some housekeeping
-    Dir = code:lib_dir(wtd),
-    ok = clear_crunk(),
-    ok = maybe_create_clefs(Dir),
 
-    %% now start building the crunk
+    ok = do_housekeeping(),
+
     Annotations = get_annotations(Files),
-    Records = make_records(Annotations, []),
-    NewRecords = validate(Records, []),
+    Records     = make_records(Annotations, []),
+    NewRecords  = validate(Records, []),
     [pretty_print("after validation", X) || X <- NewRecords],
+
     case get_errors(NewRecords) of
         []   -> Data = combine(NewRecords, []),
-                ok = write_crunk(Data, Dir),
-                ok;
+                Dir  = get_root_dir(),
+                ok   = write_crunk(Data, Dir);
         Errs -> Errs
     end.
 
@@ -78,9 +80,11 @@ get_errors(Records) ->
 combine([], Acc) ->
     lists:reverse(Acc);
 combine([H | T], Acc) ->
-    #annotations{filename = FN, wtd_exports = WE,
-                 wtd_behaviours = WBv, behaviour = BV} = H,
-    NewAcc = add_exports(WE, FN, Acc),
+    #annotations{filename       = FN,
+                 wtd_exports    = WE,
+                 wtd_behaviours = WBv,
+                 behaviour      = BV} = H,
+    NewAcc  = add_exports(WE, FN, Acc),
     NewAcc2 = add_behaviours(WBv, FN, BV, NewAcc),
     combine(T, NewAcc2).
 
@@ -90,7 +94,6 @@ add_exports([{{Name, Fns}, _} | T], FileNm, Acc) ->
     NewE = #export{modulename = FileNm, fns = Fns},
     M2 = case lists:keyfind(Name, 2, Acc) of
              #mission{} = M -> #mission{exports = E} = M,
-                               io:format("NewE is ~p~nE is ~p~n", [NewE, E]),
                                Es = maybe_merge(NewE, E),
                                M#mission{exports = Es};
              false          -> #mission{name = Name, exports = [NewE]}
@@ -168,28 +171,57 @@ validate([H | T], Acc) ->
     #annotations{exports = E, wtd_exports = WE, errors = Errs} = H,
     %% FIXME - need to validate that the WTD Exports are valid (ie atom/integer)
     %% then extract them and validate the list of exports against normal exports
-    NewRec = case validate_exports(WE, E, []) of
+    NewRec = case validate_exports(WE, E) of
                  []      -> H;
                  ErrList -> NewErrs = lists:flatten([ErrList | Errs]),
                             H#annotations{errors = NewErrs, valid = false}
              end,
     validate(T, [NewRec | Acc]).
 
-validate_exports([], _, Errs) ->
-    Errs;
-validate_exports([H | T], [], Errs) ->
-    Error = case get_export_validity(H) of
-                valid        -> {function_not_exported, H};
-                {invalid, I} -> {I, H}
-            end,
-    validate_exports(T, [], [Error | Errs]);
-validate_exports([H | T1], [H | T2], Errs) ->
-    validate_exports(T1, T2, Errs);
-validate_exports(L, [_H | T], Errs) ->
-    validate_exports(L, T, Errs).
+validate_exports(WTDExports, Exports) ->
+    case validate_wtd_exps(WTDExports, []) of
+        []  -> FnAndArities = extract_fns(WTDExports, []),
+               io:format("FnAndArities is ~p~nExports is ~p~n",
+                         [FnAndArities, Exports]),
+               Exps = lists:sort(lists:flatten([X || {X, _LineNo} <- Exports])),
+               validate_wtd_vs_normal_exp(FnAndArities, Exps, []);
+        Err -> Err
+    end.
 
-get_export_validity(WTD_Export) ->
-    io:format("WTD_Export is ~p~n
+extract_fns([], Acc) -> lists:merge(Acc);
+extract_fns([{{_Mission, List}, LineNo} | T], Acc) ->
+    L = lists:sort([{X, LineNo} || X <- List]),
+    extract_fns(T, [L | Acc]).
+
+validate_wtd_exps([], Acc) ->
+    lists:reverse(Acc);
+validate_wtd_exps([{{_Mission, List}, LineNo} | T], Errs) when is_list(List) ->
+    NewErrs = validate_fns_and_arities(List, LineNo, Errs),
+    validate_wtd_exps(T, NewErrs);
+validate_wtd_exps([{H, LineNo}| T], Errs) ->
+    Err = {invalid_wtd_export, {H, LineNo}},
+    validate_wtd_exps(T, [Err | Errs]).
+
+validate_fns_and_arities([], _LineNo, Errs) ->
+    lists:reverse(Errs);
+validate_fns_and_arities([{Atom, Int} | T], LineNo, Errs)
+when is_atom(Atom)   andalso
+     is_integer(Int) andalso
+     Int >= 0 ->
+    validate_fns_and_arities(T, LineNo, Errs);
+validate_fns_and_arities([H | T], LineNo, Errs) ->
+    Err = {invalid_fn_and_arity, {H, LineNo}},
+    validate_fns_and_arities(T, LineNo, [Err | Errs]).
+
+validate_wtd_vs_normal_exp([], _, Errs) ->
+    Errs;
+validate_wtd_vs_normal_exp([{H, LineNo} | T], [], Errs) ->
+    Error = {function_not_exported, {H, LineNo}},
+    validate_wtd_vs_normal_exp(T, [], [Error | Errs]);
+validate_wtd_vs_normal_exp([{H, _} | T1], [H | T2], Errs) ->
+    validate_wtd_vs_normal_exp(T1, T2, Errs);
+validate_wtd_vs_normal_exp(L, [_H | T], Errs) ->
+    validate_wtd_vs_normal_exp(L, T, Errs).
 
 get_annotations(Files) ->
     SyntaxFiles = [{X, compile_to_ast(X)} || X <- Files],
@@ -253,7 +285,14 @@ write_crunk([#mission{} = M | T], Dir) ->
     FileName = Dir ++ "/cbin/" ++ atom_to_list(NM) ++ ".crunk",
     ok = filelib:ensure_dir(FileName),
     Hdr = io_lib:format(get_erlang_hdr() ++ "~n", []),
-    Body = io_lib:format("~p~n~p~n", [EXP, BHV]),
+    io:format("M is ~p~n", [M]),
+    Body = case {EXP, BHV} of
+               {[],  []} -> [];
+               {[],  _}  -> io_lib:format("~p.~n",      [BHV]);
+               {_,  []}  -> io_lib:format("~p.~n",      [EXP]);
+               {_,  _}   -> io_lib:format("~p.~n~p.~n", [EXP, BHV])
+           end,
+    io:format("Body is ~p~n", [Body]),
     Terms = lists:flatten([Hdr | Body]),
     ok = file:write_file(FileName, Terms),
     write_crunk(T, Dir).
@@ -273,7 +312,8 @@ is_exported(Export, Module, Function, Arity) when is_atom(Export) andalso
                                                   is_atom(Function) andalso
                                                   is_integer(Arity) ->
     Exp = get_exports(Export),
-    case lists:keyfind(Module, 1, Exp) of
+    io:format("Module is ~p Exp is ~p~n", [Module, Exp]),
+    case lists:keyfind(Module, 2, Exp) of
         false                 -> false;
         {Module, Fns, module} -> is_exp2(Fns, Function, Arity)
     end.
@@ -283,8 +323,10 @@ is_exp2([{Function, Arity} | _T], Function, Arity) -> true;
 is_exp2([_H | T],                 Function, Arity) -> is_exp2(T, Function, Arity).
 
 get_exports(Name) when is_atom(Name) ->
-    Dir = code:lib_dir(wtd) ++ "/cbin/",
+    Dir = get_root_dir() ++ "cbin/",
+    io:format("Dir is ~p~nName is ~p~n", [Dir, Name]),
     {ok, Exp} = file:consult(Dir ++ atom_to_list(Name) ++ ".crunk"),
+
     Exp.
 
 pretty_print(Msg, Rec) when is_list(Msg) and is_record(Rec, annotations) ->
@@ -307,9 +349,15 @@ pretty_print(Msg, Rec) when is_list(Msg) and is_record(Rec, annotations) ->
               [Msg, FN, Exp, WTD_Exp, B, WTD_Bs, Errs, V]).
 
 clear_crunk() ->
-    Dir = code:lib_dir(wtd),
-    io:format("Dir is ~p~n", [Dir]),
+    Dir = get_root_dir(),
     Files = filelib:wildcard(Dir ++ "/cbin/*.crunk"),
-    io:format("Files for deletion is is ~p~n", [Files]),
     [ok = file:delete(X) || X <- Files],
     ok.
+
+do_housekeeping() ->
+    Dir = get_root_dir(),
+    ok  = clear_crunk(),
+    ok  = maybe_create_clefs(Dir).
+
+get_root_dir() -> filename:dirname(code:where_is_file("erlang_wtd.app")) ++ "/../".
+

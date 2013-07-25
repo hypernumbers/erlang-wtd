@@ -28,8 +28,8 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    Dir = code:lib_dir(wtd),
-    Dir2 = Dir ++ "/test/",
+    {ok, Dir} = file:get_cwd(),
+    Dir2 = Dir ++ "/../..//test/wtd_passing",
     Ret = wtd:compile(Dir2),
     io:format("Ret is ~p~n", [Ret]),
     Config.
@@ -111,7 +111,7 @@ groups() ->
 %%--------------------------------------------------------------------
 all() ->
     [
-     test_export
+     test_exporting
     ].
 
 %%--------------------------------------------------------------------
@@ -119,7 +119,7 @@ all() ->
 %% Info = [tuple()]
 %% @end
 %%--------------------------------------------------------------------
-test_export() ->
+test_exporting() ->
     [].
 
 %%--------------------------------------------------------------------
@@ -131,10 +131,12 @@ test_export() ->
 %% Comment = term()
 %% @end
 %%--------------------------------------------------------------------
-test_export(_Config) ->
-    Exp1 = wtd:is_exported(export, test_export, test_export, 0),
-    Exp2 = wtd:is_exported(export, test_export, test_export, 1),
-    Exp3 = wtd:is_exported(export, test_export, test_nonce,  0),
+test_exporting(_Config) ->
+    Exp1 = wtd:is_exported(exporting, test_export, test_export, 0),
+    Exp2 = wtd:is_exported(exporting, test_export, test_export, 1),
+    Exp3 = wtd:is_exported(exporting, test_export, test_nonce,  0),
+    io:format("Exp1 is ~p~nExp2 is ~p~nExp3 is ~p~n",
+              [Exp1, Exp2, Exp3]),
     case {Exp1, Exp2, Exp3} of
         {true, true, false} -> ok;
         _                   -> exit("crunk is borked...")

@@ -118,12 +118,12 @@ test_normal() ->
     [].
 
 test_normal(_Config) ->
-    Dir = code:lib_dir(wtd),
-    Dir2 = Dir ++ "/test/normal",
+    {ok, Dir} = file:get_cwd(),
+    Dir2 = Dir ++ "/../../test/normal",
     ok = wtd:compile(Dir2),
     Default  = wtd:default_clef_TEST(),
-    Inb  = Dir ++ "/cbin/inbound.clef",
-    OutB = Dir ++ "/cbin/outbound.clef",
+    Inb  = Dir ++ "/../../cbin/inbound.clef",
+    OutB = Dir ++ "/../../cbin/outbound.clef",
     {ok, Inbound}  = file:read_file(Inb),
     {ok, Outbound} = file:read_file(OutB),
     io:format("Inbound is ~p~nOutbound is ~p~nDefault is ~p~n",
@@ -140,34 +140,34 @@ failed_compile_0() ->
     [].
 
 failed_compile_0(_Config) ->
-    Dir = code:lib_dir(wtd),
-    Dir2 = Dir ++ "/test/compile_fail_0",
+    {ok, Dir} = file:get_cwd(),
+    Dir2 = Dir ++ "/../../test/compile_fail_0",
     [{file_wont_compile, _}] = wtd:compile(Dir2).
 
 failed_compile_1() ->
     [].
 
 failed_compile_1(_Config) ->
-    Dir = code:lib_dir(wtd),
-    Dir2 = Dir ++ "/test/compile_fail_1",
-    [{invalid_wtd_export, {bimbo, limbo, himbo}, _, _}] = wtd:compile(Dir2).
+    {ok, Dir} = file:get_cwd(),
+    Dir2 = Dir ++ "/../../test/compile_fail_1",
+    [{invalid_wtd_export, {{bimbo, limbo, himbo}, _}}] = wtd:compile(Dir2).
 
 failed_compile_2() ->
     [].
 
 failed_compile_2(_Config) ->
-    Dir = code:lib_dir(wtd),
-    Dir2 = Dir ++ "/test/compile_fail_2",
+    {ok, Dir} = file:get_cwd(),
+    Dir2 = Dir ++ "/../../test/compile_fail_2",
     [
-     {not_function_and_arity, _, _, _},
-     {not_function_and_arity, _, _, _},
-     {not_function_and_arity, _, _, _}
+     {invalid_fn_and_arity, {_, _}},
+     {invalid_fn_and_arity, {_, _}},
+     {invalid_fn_and_arity, {_, _}}
     ] = wtd:compile(Dir2).
 
 failed_compile_3() ->
     [].
 
 failed_compile_3(_Config) ->
-    Dir = code:lib_dir(wtd),
-    Dir2 = Dir ++ "/test/compile_fail_3",
-   [{function_not_exported, {jinko, 0}, none}] = wtd:compile(Dir2).
+    {ok, Dir} = file:get_cwd(),
+    Dir2 = Dir ++ "/../../test/compile_fail_3",
+    [{function_not_exported, {{jinko, 0}, 14}}] = wtd:compile(Dir2).
