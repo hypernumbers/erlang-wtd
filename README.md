@@ -88,3 +88,10 @@ Under The Covers
 The various functions calls required are bound to a URL structure that implements an erlang:apply/module/function/arguments tree.
 
 The public/private keypairs are used to digitially sign HTTP PUT requests to that URL structure.
+
+(Erlang) WTD EPMD
+-----------------
+
+(Erlang) WTD has a programme that acts like a standard Erlang Port Manager Daemon (except as a webservice). It needs to be running to get a cluster up.
+
+Please see http://github.com/hypernumbers/erlang-wtd-epmd for details.
