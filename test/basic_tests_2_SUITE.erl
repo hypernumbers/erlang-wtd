@@ -111,26 +111,15 @@ groups() ->
 %%--------------------------------------------------------------------
 all() ->
     [
-     test_exporting
+     test_exporting,
+     test_exporting_2,
+     test_exporting_3,
+     test_behaviour
     ].
 
-%%--------------------------------------------------------------------
-%% @spec TestCase() -> Info
-%% Info = [tuple()]
-%% @end
-%%--------------------------------------------------------------------
 test_exporting() ->
     [].
 
-%%--------------------------------------------------------------------
-%% @spec TestCase(Config0) ->
-%%               ok | exit() | {skip,Reason} | {comment,Comment} |
-%%               {save_config,Config1} | {skip_and_save,Reason,Config1}
-%% Config0 = Config1 = [tuple()]
-%% Reason = term()
-%% Comment = term()
-%% @end
-%%--------------------------------------------------------------------
 test_exporting(_Config) ->
     Exp1 = wtd:is_exported(exporting, test_export, test_export, 0),
     Exp2 = wtd:is_exported(exporting, test_export, test_export, 1),
@@ -141,3 +130,37 @@ test_exporting(_Config) ->
         {true, true, false} -> ok;
         _                   -> exit("crunk is borked...")
     end.
+
+test_exporting_2() ->
+    [].
+
+test_exporting_2(_Config) ->
+    Exp1 = wtd:is_exported(exporting, test_export_2, test_export, 0),
+    Exp2 = wtd:is_exported(exporting, test_export_2, test_export, 1),
+    Exp3 = wtd:is_exported(exporting, test_export_2, test_nonce,  0),
+    io:format("Exp1 is ~p~nExp2 is ~p~nExp3 is ~p~n",
+              [Exp1, Exp2, Exp3]),
+    case {Exp1, Exp2, Exp3} of
+        {true, true, false} -> ok;
+        _                   -> exit("crunk is borked...")
+    end.
+
+test_exporting_3() ->
+    [].
+
+test_exporting_3(_Config) ->
+    Exp1 = wtd:is_exported(exporting,       test_export_3, test_export, 0),
+    Exp2 = wtd:is_exported(exporting_again, test_export_3, test_export, 1),
+    Exp3 = wtd:is_exported(exporting,       test_export_3, test_nonce,  0),
+    io:format("Exp1 is ~p~nExp2 is ~p~nExp3 is ~p~n",
+              [Exp1, Exp2, Exp3]),
+    case {Exp1, Exp2, Exp3} of
+        {true, true, false} -> ok;
+        _                   -> exit("crunk is borked...")
+    end.
+
+test_behaviour() ->
+    [].
+
+test_behaviour(_Config) ->
+    exit(banjulienne).

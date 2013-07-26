@@ -9,6 +9,8 @@
 -export([
          compile/0,
          compile/1,
+         get_behaviours/1,
+         get_behavours/1,
          get_exports/1,
          is_exported/4
         ]).
@@ -45,9 +47,7 @@
          }).
 
 compile(Dir) ->
-    io:format("Dir is ~p~n", [Dir]),
     Files = filelib:wildcard(Dir ++ "/*.erl"),
-    io:format("Compiling ~p~n", [Files]),
     compile2(Files).
 
 compile() ->
@@ -181,8 +181,6 @@ validate([H | T], Acc) ->
 validate_exports(WTDExports, Exports) ->
     case validate_wtd_exps(WTDExports, []) of
         []  -> FnAndArities = extract_fns(WTDExports, []),
-               io:format("FnAndArities is ~p~nExports is ~p~n",
-                         [FnAndArities, Exports]),
                Exps = lists:sort(lists:flatten([X || {X, _LineNo} <- Exports])),
                validate_wtd_vs_normal_exp(FnAndArities, Exps, []);
         Err -> Err
@@ -285,16 +283,13 @@ write_crunk([#mission{} = M | T], Dir) ->
     FileName = Dir ++ "/cbin/" ++ atom_to_list(NM) ++ ".crunk",
     ok = filelib:ensure_dir(FileName),
     Hdr = io_lib:format(get_erlang_hdr() ++ "~n", []),
-    io:format("M is ~p~n", [M]),
-    Body = case {EXP, BHV} of
-               {[],  []} -> [];
-               {[],  _}  -> io_lib:format("~p.~n",      [BHV]);
-               {_,  []}  -> io_lib:format("~p.~n",      [EXP]);
-               {_,  _}   -> io_lib:format("~p.~n~p.~n", [EXP, BHV])
-           end,
-    io:format("Body is ~p~n", [Body]),
-    Terms = lists:flatten([Hdr | Body]),
-    ok = file:write_file(FileName, Terms),
+    Terms = [
+             {exports,    EXP},
+             {behaviours, BHV}
+            ],
+    Body = io_lib:format("~p.~n", [Terms]),
+    Terms2 = lists:flatten([Hdr | Body]),
+    ok = file:write_file(FileName, Terms2),
     write_crunk(T, Dir).
 
 compile_to_ast(File) -> case compile:file(File, [to_pp, binary]) of
@@ -307,27 +302,34 @@ strip(File) ->
     [H2 | _T2] = string:tokens(H1, "."),
     list_to_atom(H2).
 
-is_exported(Export, Module, Function, Arity) when is_atom(Export) andalso
-                                                  is_atom(Module) andalso
+is_exported(Export, Module, Function, Arity) when is_atom(Export)   andalso
+                                                  is_atom(Module)   andalso
                                                   is_atom(Function) andalso
                                                   is_integer(Arity) ->
-    Exp = get_exports(Export),
-    io:format("Module is ~p Exp is ~p~n", [Module, Exp]),
+    {exports, Exp} = get_exports(Export),
     case lists:keyfind(Module, 2, Exp) of
         false                 -> false;
-        {Module, Fns, module} -> is_exp2(Fns, Function, Arity)
+        {export, Module, Fns} -> is_exp2(Fns, Function, Arity)
     end.
 
 is_exp2([], _, _)                                  -> false;
 is_exp2([{Function, Arity} | _T], Function, Arity) -> true;
 is_exp2([_H | T],                 Function, Arity) -> is_exp2(T, Function, Arity).
 
-get_exports(Name) when is_atom(Name) ->
-    Dir = get_root_dir() ++ "cbin/",
-    io:format("Dir is ~p~nName is ~p~n", [Dir, Name]),
-    {ok, Exp} = file:consult(Dir ++ atom_to_list(Name) ++ ".crunk"),
+get_behavours(Name) -> get_behaviours(Name).
 
-    Exp.
+get_behaviours(Name) when is_atom(Name) ->
+    {crunk, Crunk} = get_crunk(Name),
+    {behaviours, _Bhvs} = lists:keyfind(behaviours, 1, Crunk).
+
+get_exports(Name) when is_atom(Name) ->
+    {crunk, Crunk} = get_crunk(Name),
+    {exports, _Exp} = lists:keyfind(exports, 1, Crunk).
+
+get_crunk(Name) when is_atom(Name) ->
+    Dir = get_root_dir() ++ "cbin/",
+    {ok, [Crunk]} = file:consult(Dir ++ atom_to_list(Name) ++ ".crunk"),
+    {crunk, Crunk}.
 
 pretty_print(Msg, Rec) when is_list(Msg) and is_record(Rec, annotations) ->
     #annotations{
