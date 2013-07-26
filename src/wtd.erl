@@ -12,7 +12,9 @@
          get_behaviours/1,
          get_behavours/1,
          get_exports/1,
-         is_exported/4
+         is_exported/4,
+         has_behaviour/3,
+         has_behavour/3
         ]).
 
 %% export for the test suite
@@ -85,6 +87,8 @@ combine([H | T], Acc) ->
                  wtd_behaviours = WBv,
                  behaviour      = BV} = H,
     NewAcc  = add_exports(WE, FN, Acc),
+    io:format("Addinb behaviours to ~p~n", [NewAcc]),
+    io:format("WBv is ~p~nFN is ~p~nBV is ~p~n", [WBv, FN, BV]),
     NewAcc2 = add_behaviours(WBv, FN, BV, NewAcc),
     combine(T, NewAcc2).
 
@@ -301,6 +305,17 @@ strip(File) ->
     [H1 | _T1] = lists:reverse(string:tokens(File, "/")),
     [H2 | _T2] = string:tokens(H1, "."),
     list_to_atom(H2).
+
+has_behavour(Mission, Module, Behaviour) ->
+    has_behaviour(Mission, Module, Behaviour).
+
+has_behaviour(Mission, Module, Behaviour) ->
+    {behaviours, Bhvs} = get_behaviours(Mission),
+    case lists:keyfind(Module, 2, Bhvs) of
+        false                          -> false;
+        {behaviour, Module, Behaviour} -> true;
+        {behaviour, Module, _}         -> false
+    end.
 
 is_exported(Export, Module, Function, Arity) when is_atom(Export)   andalso
                                                   is_atom(Module)   andalso

@@ -114,7 +114,8 @@ all() ->
      test_exporting,
      test_exporting_2,
      test_exporting_3,
-     test_behaviour
+     test_behaviour,
+     test_no_behaviour
     ].
 
 test_exporting() ->
@@ -163,4 +164,21 @@ test_behaviour() ->
     [].
 
 test_behaviour(_Config) ->
-    exit(banjulienne).
+    Exp1 = wtd:has_behaviour(exported_server,   test_wtd_server,   gen_server),
+    Exp2 = wtd:has_behaviour(exported_server,   test_wtd_server_2, gen_server),
+    Exp3 = wtd:has_behaviour(exported_server_2, test_wtd_server_2, gen_server),
+    case {Exp1, Exp2, Exp3} of
+        {true, true, true} -> ok;
+        _            -> exit("crunk is borked...")
+    end.
+
+test_no_behaviour() ->
+    [].
+
+test_no_behaviour(_Config) ->
+    Exp1 = wtd:has_behaviour(exported_server, test_wtd_server_3, fishbowl),
+    case Exp1 of
+        false -> ok;
+        _     -> exit("crunk is borked...")
+    end.
+
