@@ -1,3 +1,8 @@
+Status
+------
+
+This software is not even Alpha. It 'runs' and it passes test, and will continue to do so, but does nothing worth doing. Ye'll huf tae wait...
+
 Erlang WTD
 ----------
 
