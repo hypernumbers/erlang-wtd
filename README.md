@@ -69,7 +69,11 @@ With (Erlang) WTD Alice, Bob, Charlie, Dave, Erin and even Mallory and Trudy can
 * to be as similar to (Erlang) OTP as possible
 * to be as small as possible a code base
 
-It is **not** a replacement for (Erlang) OTP, **nor** is it a fork of (Erlang) OTP and **neither** is it better than (Erlang) OTP - just slightly different.
+It is:
+
+* **not** a replacement for (Erlang) OTP
+* **nor** is it a fork of (Erlang) OTP
+* **neither** is it better than (Erlang) OTP - just slightly different.
 
 (Erlang) WTD Clustering
 -----------------------
