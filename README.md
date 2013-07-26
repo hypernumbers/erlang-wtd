@@ -40,17 +40,19 @@ Examples of application systems are:
 
 Currently the resources for beginners focus on them learning OS languages (Python, Ruby, etc). People learning to write software from scratch today should be starting with AS languages.
 
+**(Erlang) WTD is an AS designed specifically for beginners.**
+
 Why Not Programme against (Erlang) OTP?
 ---------------------------------------
 
 Erlang OTP uses a transitive and complete trust relationship which makes it entirely unsuitable for beginners to build collaborative clusters.
 
-In brief, if Alice lets Bob cluster his running Erlang Virtual Machine with hers, then she gives Bob the ability to run any arbritrary command on her computer - including deleting the whole hard disk.
+In brief, if Alice lets Bob cluster his running Erlang Virtual Machine with hers, then she gives Bob the ability to run any arbritrary command on her computer - including deleting the whole hard disk. This is not good. On the internet, this is very not good indeed...
 
 What Is (Erlang) WTD?
 ---------------------
 
-(Erlang) WTD is an AS aimed at beginners. With (Erlang) WTD Alice can:
+(Erlang) WTD is an AS designed so that beginners can build low-risk distributed clusters with strangers they have 'met' over the internet. With (Erlang) WTD Alice can:
 
 * let Bob execute specific software she has written on her computer
 * revoke Bob's permission to do so at her convenience
@@ -61,7 +63,13 @@ With (Erlang) WTD Alice, Bob, Charlie, Dave, Erin and even Mallory and Trudy can
 (Erlang) WTD And (Erlang) OTP
 -----------------------------
 
-(Erlang) WTD is a close relative of (Erlang) OTP.
+(Erlang) WTD is a close relative of (Erlang) OTP. It is designed:
+
+* to reuse as much of (Erlang) OTP as possible
+* to be as similar to (Erlang) OTP as possible
+* to be as small as possible a code base
+
+It is **not** a replacement for (Erlang) OTP, **nor** is it a fork of (Erlang) OTP and **neither** is it better than (Erlang) OTP - just slightly different.
 
 (Erlang) WTD Clustering
 -----------------------
