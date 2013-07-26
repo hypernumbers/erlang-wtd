@@ -1,3 +1,9 @@
+%%% @author     Gordon Guthrie
+%%% @copyright (C) 2013, Gordon Guthrie
+%%% @doc
+%%%
+%%% @end
+%%% Created : 14 Jul 2013 by gordonguthrie@backawinner.gg
 -module(erlang_wtd_app).
 
 -behaviour(application).

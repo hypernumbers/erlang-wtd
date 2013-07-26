@@ -1,9 +1,9 @@
 %%% @author     Gordon Guthrie
-%%% @copyright (C) 2013, gordon@vixo.com
+%%% @copyright (C) 2013, Gordon Guthrie
 %%% @doc       The main module of Erlang WTD
 %%%
 %%% @end
-%%% Created : 14 Jul 2013 by Gordon Guthrie
+%%% Created : 14 Jul 2013 by gordonguthrie@backawinner.gg
 -module(wtd).
 
 -export([
