@@ -16,14 +16,11 @@
 %% ===================================================================
 %% Application callbacks
 %% ===================================================================
-
-start() -> start([], []).
+start() ->
+    start([], []).
 
 start(_StartType, _StartArgs) ->
-    ok = application:start(crypto),
-    ok = application:start(ranch),
-    ok = application:start(cowboy),
-    erlang_wtd_sup:start_link().
+    {ok, _PID} = erlang_wtd_sup:start_link().
 
 stop(_State) ->
     ok.

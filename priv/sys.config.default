@@ -1,0 +1,12 @@
+%% -*- erlang -*-
+[{erlang_wtd,
+  [
+   {nodename, wtd},
+
+   {environment, dev},      % production | dev
+   {startup_debug, true},
+
+   {wtd_epmd_port,  14152},
+   {wtd_proxy_port, 14153}
+  ]}
+].

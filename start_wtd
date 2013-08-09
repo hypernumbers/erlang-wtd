@@ -1,0 +1,67 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+
+main([]) ->
+
+    ensure_config(),
+
+    Node = atom_to_list(conf_lname()),
+    PipeDir = "/tmp/" ++ Node ++ "/",
+    filelib:ensure_dir("var/runerl_log/"),
+    filelib:ensure_dir(PipeDir),
+
+    Cmd = "run_erl -daemon " ++ PipeDir ++ " var/runerl_log " ++
+        "\"erl -name " ++ Node ++ " -smp "  ++
+        "-pa ./ebin -pa ./deps/*/ebin " ++
+        "-s start " ++
+        "-config var/sys\"",
+
+    case os:cmd(Cmd) of
+        []   ->
+            ok,
+            make_shell(Node);
+        Else ->
+            io:format("wtd failed to boot:~n~s~n", [Else]),
+            ok
+    end.
+
+make_shell(NodeName) ->
+    Shell = io_lib:format("#!/bin/bash~nto_erl /tmp/~s/~n", [NodeName]),
+    file:write_file("shell", Shell),
+    os:cmd("chmod +x shell").
+
+ensure_config() ->
+    case has_config() of
+        false -> copy_default_config();
+        true  -> ok
+    end.
+
+has_config() ->
+    filelib:is_file(config_file()).
+
+config_file() ->
+    [root(), "/var/", "sys.config"].
+
+copy_default_config() ->
+    ok = filelib:ensure_dir([root(), "/var/"]),
+    {ok, _Bytes} =
+        file:copy([root(), "/priv/", "sys.config.default"], config_file()),
+    ok.
+
+conf_lname() ->
+    nodeatom(read_config(nodename)).
+
+nodeatom(Name) ->
+    Host     = string:strip(os:cmd("hostname -f"), both, $\n),
+    LongName = io_lib:format("~s@~s", [Name, Host]),
+    list_to_atom(lists:flatten(LongName)).
+
+read_config(Key) ->
+    {ok, [Config]}     = file:consult(config_file()),
+    {erlang_wtd, Conf} = lists:keyfind(erlang_wtd, 1, Config),
+    {Key, Val}         = lists:keyfind(Key, 1, Conf),
+    Val.
+
+root() ->
+    {ok, Root} = file:get_cwd(),
+    Root.

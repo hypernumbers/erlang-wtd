@@ -173,8 +173,6 @@ validate([#annotations{valid = false} = Rec | T], Acc) ->
     validate(T, [Rec | Acc]);
 validate([H | T], Acc) ->
     #annotations{exports = E, wtd_exports = WE, errors = Errs} = H,
-    %% FIXME - need to validate that the WTD Exports are valid (ie atom/integer)
-    %% then extract them and validate the list of exports against normal exports
     NewRec = case validate_exports(WE, E) of
                  []      -> H;
                  ErrList -> NewErrs = lists:flatten([ErrList | Errs]),
