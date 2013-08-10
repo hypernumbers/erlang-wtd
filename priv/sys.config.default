@@ -6,7 +6,17 @@
    {environment, dev},      % production | dev
    {startup_debug, true},
 
-   {wtd_epmd_port,  14152},
-   {wtd_proxy_port, 14153}
+   {epmds,   [
+              {master, [
+                        {domain,      "localhost"},
+                        {epmd_port,   14152},
+                        {proxy_port,  14153},
+                        {public_key,  "0PN5J17HBGZHT7JJ3X82"},
+                        {private_key, "uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o"}
+                       ]
+              }
+             ]
+   }
+
   ]}
 ].
