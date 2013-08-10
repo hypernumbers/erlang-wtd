@@ -7,7 +7,7 @@ n*#*#
 TAGS
 tags
 var
-deps/erlang-history
+deps/
 cbin/
 cbin/*.crunk
 cbin/*.clef
