@@ -4,6 +4,7 @@
 %%%
 %%% @end
 %%% Created : 14 Jul 2013 by gordonguthrie@backawinner.gg
+
 -module(wtd).
 
 -export([
@@ -21,6 +22,8 @@
 -export([
          default_clef_TEST/0
         ]).
+
+-define(BEHAVIOUR, dev).
 
 -record(annotations, {
           filename       = "",
@@ -267,10 +270,19 @@ default_clef_TEST() ->
     lists:flatten(default_clef()).
 
 default_clef() ->
-    io_lib:format(get_erlang_hdr() ++ "~n{"
-                  ++ "\"master@erlangwtd.com\","
-                  ++ "\"global\","
-                  ++ "\"submission\"}.~n", []).
+    Basic = "~n{{"
+        ++ "\"master@erlangwtd.com\","
+        ++ "\"public-getting-started\"},"
+        ++ "\"1111-2222-3333-4444-5555-6666-7777-8888\"}}.~n",
+    Str = case ?BEHAVIOUR of
+              prod -> Basic;
+              dev  -> {_, Key} = hmac_api_lib:get_api_keypair(),
+                            Basic ++ "{{"
+                                ++ "\"development@erlangwtd.com\","
+                                ++ "\"private-development\"},"
+                                ++ "\"" ++ Key ++ "\"}}.~n"
+          end,
+    io_lib:format(get_erlang_hdr() ++ Str, []).
 
 get_erlang_hdr() ->
     "%% -*- erlang -*-".
@@ -282,10 +294,7 @@ write_crunk([#mission{} = M | T], Dir) ->
     FileName = Dir ++ "/cbin/" ++ atom_to_list(NM) ++ ".crunk",
     ok = filelib:ensure_dir(FileName),
     Hdr = io_lib:format(get_erlang_hdr() ++ "~n", []),
-    Terms = [
-             {exports,    EXP},
-             {behaviours, BHV}
-            ],
+    Terms = lists:merge([EXP, BHV]),
     Body = io_lib:format("~p.~n", [Terms]),
     Terms2 = lists:flatten([Hdr | Body]),
     ok = file:write_file(FileName, Terms2),

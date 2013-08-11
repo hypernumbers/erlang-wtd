@@ -3,7 +3,7 @@
   [
    {erlangnodename, wtd},
    {wtdnodename,    {"gordon@vixo.com", 1}},
-   {environment,    dev},      % production | dev
+   {environment,    dev},      % prod | dev
    {startup_debug,  true},
    {epmds,          [
                      {master, [

@@ -100,3 +100,8 @@ The public/private keypairs are used to digitially sign HTTP PUT requests to tha
 (Erlang) WTD has a programme that acts like a standard Erlang Port Manager Daemon (except as a webservice). It needs to be running to get a cluster up.
 
 Please see http://github.com/hypernumbers/erlang-wtd-epmd for details.
+
+Contributing To (Erlang) WTD
+-----------------------------
+
+It is probably a bit early for anyone else to contribute as the basic core isn't working. But when it is, you will want to edit the ``BEHAVIOUR`` macro in ``wtd.erl`` and set it to ``dev`` from ``prod``.
