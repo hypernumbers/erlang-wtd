@@ -19,7 +19,8 @@
 %% API
 -export([
          tick/0,
-         get_connections/0
+         get_connections/0,
+         get_missions/0
         ]).
 
 %% gen_server callbacks
@@ -46,8 +47,15 @@
           status
          }).
 
+-record(mission, {
+          name,
+          public_key
+         }).
+
 -record(state, {
-          epmds
+          name,
+          epmds,
+          missions
          }).
 
 %%%===================================================================
@@ -57,33 +65,39 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-
 tick() ->
     gen_server:call(?SERVER, tick).
 
 get_connections() ->
     gen_server:call(?SERVER, get_connections).
 
+get_missions() ->
+    gen_server:call(?SERVER, get_missions).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
 init([]) ->
-    {ok, Config} = application:get_env(erlang_wtd, epmds),
-    {ok, {Public, WTDNode}} = application:get_env(erlang_wtd, wtdnodename),
-    EPMDs = [make_epmd(Public, WTDNode, X) || X <- Config],
+    Name     = get_name(),
+    EPMDs    = load_epmds(),
+    Missions = load_missions(),
     {ok, _} = timer:apply_after(?TICK, epmd_srv, tick, []),
-    {ok, #state{epmds = EPMDs}}.
+    {ok, #state{name = Name, epmds = EPMDs, missions = Missions}}.
 
 handle_call(tick, _From, State) ->
-    #state{epmds = EPMDs} = State,
+    #state{name = Name, missions = Missions, epmds = EPMDs} = State,
     Reply = ok,
     {ok, _} = timer:apply_after(?TICK, epmd_srv, tick, []),
-    NewEPMDS = [ping(X) || X <- EPMDs],
+    NewEPMDS = [ping(Name, Missions, X) || X <- EPMDs],
     {reply, Reply, State#state{epmds = NewEPMDS}};
 handle_call(get_connections, _From, State) ->
     #state{epmds = EPMDs} = State,
     Reply = [{N, St} || #epmd{name = N, status = St} <- EPMDs],
+    {reply, Reply, State};
+handle_call(get_missions, _From, State) ->
+    #state{missions = Missions} = State,
+    Reply = [{N, Pk} || #mission{name = N, public_key = Pk} <- Missions],
     {reply, Reply, State}.
 
 handle_cast(_Msg, State) ->
@@ -102,10 +116,11 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-ping(#epmd{domain      = Domain,
-           epmd_port   = EPMDPort,
-           public_key  = PublicKey,
-           private_key = PrivateKey} = EPMD) ->
+ping({Email, Name}, Missions, #epmd{
+                        domain      = Domain,
+                        epmd_port   = EPMDPort,
+                        public_key  = PublicKey,
+                        private_key = PrivateKey} = EPMD) ->
     URL = "http://" ++ Domain ++ ":" ++ integer_to_list(EPMDPort),
     Method = post,
     Date = dh_date:format("D, j M Y H:i:s"),
@@ -113,15 +128,24 @@ ping(#epmd{domain      = Domain,
                {"date",         Date},
                {"accept",       "application/json"}],
     ContentType = "application/json",
-    Body = jiffy:encode({[
-                          {name, "myname"},
-                          {vals, "somevals"}
-                         ]}),
+    JMissions = to_json(Missions),
+    io:format("JMissions is ~p~n", [JMissions]),
+    Body = {[
+             {name,     {[
+                          {email, Email},
+                          {name,  Name}
+                         ]}
+             },
+             {missions, JMissions}
+           ]},
+    io:format("Body is ~p~n", [Body]),
+    JBody = jiffy:encode(Body),
+    io:format("JBody is ~p~n", [JBody]),
     Path = "/",
     HTTPAuthHeader = hmac_api_lib:sign(PrivateKey, PublicKey, Method, Path,
                                        Headers, ContentType),
 
-    Request = {URL ++ Path, [HTTPAuthHeader | Headers], ContentType, Body},
+    Request = {URL ++ Path, [HTTPAuthHeader | Headers], ContentType, JBody},
     {Code, R2} = case httpc:request(Method, Request, [], []) of
                      {ok, {{_, Cd, _}, _, R}} -> {Cd, jiffy:decode(R)};
                      _                        -> {500, remote_error}
@@ -151,3 +175,33 @@ make_epmd(PublicKey, WTDNode, {Name, List}) ->
           public_key  = PublicKey,
           private_key = PrivateKey,
           wtd_node    = WTDNode}.
+
+get_name() ->
+    {ok, WTDNodeName} = application:get_env(erlang_wtd, wtdnodename),
+    WTDNodeName.
+
+load_epmds() ->
+    {ok, Config} = application:get_env(erlang_wtd, epmds),
+    {ok, {Public, WTDNode}} = application:get_env(erlang_wtd, wtdnodename),
+    _EPMDs = [make_epmd(Public, WTDNode, X) || X <- Config].
+
+load_missions() ->
+    Dir = wtd_utils:get_root_dir(),
+    {ok, Missions} = file:consult(Dir ++ "/cbin/missions.wtd"),
+    [#mission{name = N, public_key = P} || {N, P} <- Missions].
+
+to_json(List) -> {to_j2(List, [])}.
+
+to_j2([], Acc) ->
+    lists:reverse(Acc);
+to_j2([#mission{name = Mission, public_key = {Email, Name}} | T], Acc) ->
+    NewAcc = {mission, {[
+                         {name, Mission},
+                         {wtdnodename, {[
+                                         {email, Email},
+                                         {name,  Name}
+                                        ]}
+                          }
+                        ]}
+             },
+        to_j2(T, [NewAcc | Acc]).

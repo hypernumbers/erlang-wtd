@@ -56,7 +56,7 @@ compile(Dir) ->
     compile2(Files).
 
 compile() ->
-    Dir = get_root_dir(),
+    Dir = wtd_utils:get_root_dir(),
     Files = lists:merge([
                          filelib:wildcard(Dir ++ "/../../apps/*/src/*.erl"),
                          filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")
@@ -73,7 +73,7 @@ compile2(Files) ->
 
     case get_errors(NewRecords) of
         []   -> Data = combine(NewRecords, []),
-                Dir  = get_root_dir(),
+                Dir  = wtd_utils:get_root_dir(),
                 ok   = write_crunk(Data, Dir);
         Errs -> Errs
     end.
@@ -346,7 +346,7 @@ get_exports(Name) when is_atom(Name) ->
     {exports, _Exp} = lists:keyfind(exports, 1, Crunk).
 
 get_crunk(Name) when is_atom(Name) ->
-    Dir = get_root_dir() ++ "cbin/",
+    Dir = wtd_utils:get_root_dir() ++ "cbin/",
     {ok, [Crunk]} = file:consult(Dir ++ atom_to_list(Name) ++ ".crunk"),
     {crunk, Crunk}.
 
@@ -370,15 +370,14 @@ pretty_print(Msg, Rec) when is_list(Msg) and is_record(Rec, annotations) ->
               [Msg, FN, Exp, WTD_Exp, B, WTD_Bs, Errs, V]).
 
 clear_crunk() ->
-    Dir = get_root_dir(),
+    Dir = wtd_utils:get_root_dir(),
     Files = filelib:wildcard(Dir ++ "/cbin/*.crunk"),
     [ok = file:delete(X) || X <- Files],
     ok.
 
 do_housekeeping() ->
-    Dir = get_root_dir(),
+    Dir = wtd_utils:get_root_dir(),
     ok  = clear_crunk(),
     ok  = maybe_create_clefs(Dir).
 
-get_root_dir() -> filename:dirname(code:where_is_file("erlang_wtd.app")) ++ "/../".
 
