@@ -1,22 +1,19 @@
 %% -*- erlang -*-
 [{erlang_wtd,
   [
-   {nodename, wtd},
-
-   {environment, dev},      % production | dev
-   {startup_debug, true},
-
-   {epmds,   [
-              {master, [
-                        {domain,      "localhost"},
-                        {epmd_port,   14152},
-                        {proxy_port,  14153},
-                        {public_key,  "0PN5J17HBGZHT7JJ3X82"},
-                        {private_key, "uV3F3YluFJax1cknvbcGwgjvx4QpvB+leU8dUj2o"}
-                       ]
-              }
-             ]
+   {erlangnodename, wtd},
+   {wtdnodename,    {"gordon@vixo.com", 1}},
+   {environment,    dev},      % production | dev
+   {startup_debug,  true},
+   {epmds,          [
+                     {master, [
+                               {domain,      "localhost"},
+                               {epmd_port,   14152},
+                               {proxy_port,  14153},
+                               {private_key, "b9a9-ddbb-c4c7-f109-5155-dc0c-6ac6-052c"}
+                              ]
+                     }
+                    ]
    }
-
-  ]}
-].
+  ]
+ }].

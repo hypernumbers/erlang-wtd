@@ -67,7 +67,6 @@ compile2(Files) ->
     Annotations = get_annotations(Files),
     Records     = make_records(Annotations, []),
     NewRecords  = validate(Records, []),
-    [pretty_print("after validation", X) || X <- NewRecords],
 
     case get_errors(NewRecords) of
         []   -> Data = combine(NewRecords, []),
@@ -87,8 +86,6 @@ combine([H | T], Acc) ->
                  wtd_behaviours = WBv,
                  behaviour      = BV} = H,
     NewAcc  = add_exports(WE, FN, Acc),
-    io:format("Addinb behaviours to ~p~n", [NewAcc]),
-    io:format("WBv is ~p~nFN is ~p~nBV is ~p~n", [WBv, FN, BV]),
     NewAcc2 = add_behaviours(WBv, FN, BV, NewAcc),
     combine(T, NewAcc2).
 

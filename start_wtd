@@ -49,7 +49,7 @@ copy_default_config() ->
     ok.
 
 conf_lname() ->
-    nodeatom(read_config(nodename)).
+    nodeatom(read_config(erlangnodename)).
 
 nodeatom(Name) ->
     Host     = string:strip(os:cmd("hostname -f"), both, $\n),
