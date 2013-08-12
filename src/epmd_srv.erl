@@ -129,7 +129,6 @@ ping({Email, Name}, Missions, #epmd{
                {"accept",       "application/json"}],
     ContentType = "application/json",
     JMissions = to_json(Missions),
-    io:format("JMissions is ~p~n", [JMissions]),
     Body = {[
              {name,     {[
                           {email, Email},
@@ -138,9 +137,7 @@ ping({Email, Name}, Missions, #epmd{
              },
              {missions, JMissions}
            ]},
-    io:format("Body is ~p~n", [Body]),
     JBody = jiffy:encode(Body),
-    io:format("JBody is ~p~n", [JBody]),
     Path = "/",
     HTTPAuthHeader = hmac_api_lib:sign(PrivateKey, PublicKey, Method, Path,
                                        Headers, ContentType),
@@ -197,10 +194,10 @@ to_j2([], Acc) ->
 to_j2([#mission{name = Mission, public_key = {Email, Name}} | T], Acc) ->
     NewAcc = {mission, {[
                          {name, Mission},
-                         {wtdnodename, {[
-                                         {email, Email},
-                                         {name,  Name}
-                                        ]}
+                         {public_key, {[
+                                        {email, Email},
+                                        {name,  Name}
+                                       ]}
                           }
                         ]}
              },
