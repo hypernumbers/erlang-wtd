@@ -19,6 +19,7 @@
 %% API
 -export([
          tick/0,
+         get_nodes/0,
          get_connections/0,
          get_missions/0
         ]).
@@ -44,6 +45,7 @@
           public_key,
           private_key,
           wtd_node,
+          available_missions,
           status
          }).
 
@@ -55,7 +57,7 @@
 -record(state, {
           name,
           epmds,
-          missions
+          exported_missions
          }).
 
 %%%===================================================================
@@ -66,13 +68,16 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 tick() ->
-    gen_server:call(?SERVER, tick).
+    gen_server:cast(?SERVER, tick).
+
+get_nodes() ->
+    gen_server:call(?SERVER, get_nodes).
 
 get_connections() ->
     gen_server:call(?SERVER, get_connections).
 
 get_missions() ->
-    gen_server:call(?SERVER, get_missions).
+    gen_server:call(?SERVER, get_exported_missions).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -81,27 +86,35 @@ get_missions() ->
 init([]) ->
     Name     = get_name(),
     EPMDs    = load_epmds(),
-    Missions = load_missions(),
+    Missions = load_exported_missions(),
     {ok, _} = timer:apply_after(?TICK, epmd_srv, tick, []),
-    {ok, #state{name = Name, epmds = EPMDs, missions = Missions}}.
+    {ok, #state{name              = Name,
+                epmds             = EPMDs,
+                exported_missions = Missions}}.
 
-handle_call(tick, _From, State) ->
-    #state{name = Name, missions = Missions, epmds = EPMDs} = State,
-    Reply = ok,
-    {ok, _} = timer:apply_after(?TICK, epmd_srv, tick, []),
-    NewEPMDS = [ping(Name, Missions, X) || X <- EPMDs],
-    {reply, Reply, State#state{epmds = NewEPMDS}};
+handle_call(get_nodes, _From, State) ->
+    #state{epmds = EPMDs} = State,
+    Reply = [dict:fetch_keys(AM) ||
+                #epmd{available_missions = AM,
+                      status             = St} <- EPMDs,
+                                            St =:= authenticated],
+    {reply, lists:usort(lists:flatten(Reply)), State};
 handle_call(get_connections, _From, State) ->
     #state{epmds = EPMDs} = State,
     Reply = [{N, St} || #epmd{name = N, status = St} <- EPMDs],
     {reply, Reply, State};
-handle_call(get_missions, _From, State) ->
-    #state{missions = Missions} = State,
+handle_call(get_exported_missions, _From, State) ->
+    #state{exported_missions = Missions} = State,
     Reply = [{N, Pk} || #mission{name = N, public_key = Pk} <- Missions],
     {reply, Reply, State}.
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast(tick, State) ->
+    #state{name              = Name,
+           exported_missions = Missions,
+           epmds             = EPMDs} = State,
+    {ok, _} = timer:apply_after(?TICK, epmd_srv, tick, []),
+    NewEPMDS = [ping(Name, Missions, X) || X <- EPMDs],
+    {noreply, State#state{epmds = NewEPMDS}}.
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -141,19 +154,19 @@ ping({Email, Name}, Missions, #epmd{
                          io:format("Other is ~p~n", [Other]),
                          {500, remote_error}
                  end,
-    Status = case {Code, R2} of
-                 {200, {ok, authenticated}} ->
-                     authenticated;
-                 {403, {error, Error}} ->
-                     list_to_atom(binary_to_list(Error));
-                 {500, remote_error} ->
-                     io:format("its a 500~n"),
-                     remote_error;
-                 O ->
-                     io:format("Connection error ~p~n", [O]),
-                     other_error
-             end,
-    EPMD#epmd{status = Status}.
+    {Status, Ms} = case {Code, R2} of
+                       {200, {ok, AvailableMissions}} ->
+                           {authenticated, AvailableMissions};
+                       {403, {error, Error}} ->
+                           {list_to_atom(binary_to_list(Error)), dict:new()};
+                       {500, remote_error} ->
+                           io:format("its a 500~n"),
+                           {remote_error, dict:new()};
+                       O ->
+                           io:format("Connection error ~p~n", [O]),
+                           {other_error, dict:new()}
+                   end,
+    EPMD#epmd{status = Status, available_missions = Ms}.
 
 make_epmd(PublicKey, WTDNode, {Name, List}) ->
     {domain,      DM}         = lists:keyfind(domain,      1, List),
@@ -177,7 +190,7 @@ load_epmds() ->
     {ok, {Public, WTDNode}} = application:get_env(erlang_wtd, wtdnodename),
     _EPMDs = [make_epmd(Public, WTDNode, X) || X <- Config].
 
-load_missions() ->
+load_exported_missions() ->
     Dir = wtd_utils:get_root_dir(),
     {ok, Missions} = file:consult(Dir ++ "/cbin/missions.wtd"),
     [#mission{name = N, public_key = P} || {N, P} <- Missions].

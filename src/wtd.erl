@@ -15,7 +15,8 @@
          get_exports/1,
          is_exported/4,
          has_behaviour/3,
-         has_behavour/3
+         has_behavour/3,
+         nodes/0
         ]).
 
 %% export for the test suite
@@ -51,6 +52,12 @@
           behaviour
          }).
 
+%%%-----------------------------------------------------------------------------
+%%%
+%%% API Fns
+%%%
+%%%-----------------------------------------------------------------------------
+
 compile(Dir) ->
     Files = filelib:wildcard(Dir ++ "/*.erl"),
     compile2(Files).
@@ -62,6 +69,7 @@ compile() ->
                          filelib:wildcard(Dir ++ "/../../deps/*/src/*.erl")
                         ]),
     compile2(Files).
+
 
 compile2(Files) ->
 
@@ -77,6 +85,50 @@ compile2(Files) ->
                 ok   = write_crunk(Data, Dir);
         Errs -> Errs
     end.
+
+get_behavours(Name) -> get_behaviours(Name).
+
+get_behaviours(Name) when is_atom(Name) ->
+    {crunk, Crunk} = get_crunk(Name),
+    {behaviours, _Bhvs} = lists:keyfind(behaviours, 1, Crunk).
+
+get_exports(Name) when is_atom(Name) ->
+    {crunk, Crunk} = get_crunk(Name),
+    {exports, _Exp} = lists:keyfind(exports, 1, Crunk).
+
+is_exported(Export, Module, Function, Arity) when is_atom(Export)   andalso
+                                                  is_atom(Module)   andalso
+                                                  is_atom(Function) andalso
+                                                  is_integer(Arity) ->
+    {exports, Exp} = get_exports(Export),
+    case lists:keyfind(Module, 2, Exp) of
+        false                 -> false;
+        {export, Module, Fns} -> is_exp2(Fns, Function, Arity)
+    end.
+
+is_exp2([], _, _)                                  -> false;
+is_exp2([{Function, Arity} | _T], Function, Arity) -> true;
+is_exp2([_H | T],                 Function, Arity) -> is_exp2(T, Function, Arity).
+
+has_behavour(Mission, Module, Behaviour) ->
+    has_behaviour(Mission, Module, Behaviour).
+
+has_behaviour(Mission, Module, Behaviour) ->
+    {behaviours, Bhvs} = get_behaviours(Mission),
+    case lists:keyfind(Module, 2, Bhvs) of
+        false                          -> false;
+        {behaviour, Module, Behaviour} -> true;
+        {behaviour, Module, _}         -> false
+    end.
+
+nodes() ->
+    epmd_srv:get_nodes().
+
+%%%-----------------------------------------------------------------------------
+%%%
+%%% Internal Fns
+%%%
+%%%-----------------------------------------------------------------------------
 
 get_errors(Records) ->
      lists:flatten([X#annotations.errors || X <- Records]).
@@ -320,41 +372,6 @@ strip(File) ->
     [H1 | _T1] = lists:reverse(string:tokens(File, "/")),
     [H2 | _T2] = string:tokens(H1, "."),
     list_to_atom(H2).
-
-has_behavour(Mission, Module, Behaviour) ->
-    has_behaviour(Mission, Module, Behaviour).
-
-has_behaviour(Mission, Module, Behaviour) ->
-    {behaviours, Bhvs} = get_behaviours(Mission),
-    case lists:keyfind(Module, 2, Bhvs) of
-        false                          -> false;
-        {behaviour, Module, Behaviour} -> true;
-        {behaviour, Module, _}         -> false
-    end.
-
-is_exported(Export, Module, Function, Arity) when is_atom(Export)   andalso
-                                                  is_atom(Module)   andalso
-                                                  is_atom(Function) andalso
-                                                  is_integer(Arity) ->
-    {exports, Exp} = get_exports(Export),
-    case lists:keyfind(Module, 2, Exp) of
-        false                 -> false;
-        {export, Module, Fns} -> is_exp2(Fns, Function, Arity)
-    end.
-
-is_exp2([], _, _)                                  -> false;
-is_exp2([{Function, Arity} | _T], Function, Arity) -> true;
-is_exp2([_H | T],                 Function, Arity) -> is_exp2(T, Function, Arity).
-
-get_behavours(Name) -> get_behaviours(Name).
-
-get_behaviours(Name) when is_atom(Name) ->
-    {crunk, Crunk} = get_crunk(Name),
-    {behaviours, _Bhvs} = lists:keyfind(behaviours, 1, Crunk).
-
-get_exports(Name) when is_atom(Name) ->
-    {crunk, Crunk} = get_crunk(Name),
-    {exports, _Exp} = lists:keyfind(exports, 1, Crunk).
 
 get_crunk(Name) when is_atom(Name) ->
     Dir = wtd_utils:get_root_dir() ++ "cbin/",
