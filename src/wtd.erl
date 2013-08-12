@@ -23,7 +23,7 @@
          default_clef_TEST/0
         ]).
 
--define(BEHAVIOUR, dev).
+-define(ENVIRONMENT, dev).
 
 -record(annotations, {
           filename       = "",
@@ -255,15 +255,19 @@ get_a3([_H | T],  Acc) ->
 maybe_create_clefs(Dir) ->
     Path = Dir ++ "/cbin/",
     Files = [Path ++ "outbound.clef", Path ++ "inbound.clef"],
-    [ok = make_if_doesnt_exist(X) || X <- Files],
+    [ok = write_if_doesnt_exist(X, default_clef()) || X <- Files],
     ok.
 
-make_if_doesnt_exist(FileName) ->
+maybe_create_mission(Dir) ->
+    Path = Dir ++ "/cbin/",
+    File = Path ++ "missions.wtd",
+    ok = write_if_doesnt_exist(File, default_wtd()).
+
+write_if_doesnt_exist(FileName, Contents) ->
     ok = filelib:ensure_dir(FileName),
     case filelib:is_file(FileName) of
         true  -> ok;
-        false -> Hdr = default_clef(),
-                 ok = file:write_file(FileName, Hdr)
+        false -> ok = file:write_file(FileName, Contents)
     end.
 
 default_clef_TEST() ->
@@ -274,7 +278,7 @@ default_clef() ->
         ++ "\"master@erlangwtd.com\","
         ++ "\"public-getting-started\"},"
         ++ "\"1111-2222-3333-4444-5555-6666-7777-8888\"}}.~n",
-    Str = case ?BEHAVIOUR of
+    Str = case ?ENVIRONMENT of
               prod -> Basic;
               dev  -> {_, Key} = hmac_api_lib:get_api_keypair(),
                             Basic ++ "{{"
@@ -283,6 +287,13 @@ default_clef() ->
                                 ++ "\"" ++ Key ++ "\"}}.~n"
           end,
     io_lib:format(get_erlang_hdr() ++ Str, []).
+
+default_wtd() ->
+    case ?ENVIRONMENT of
+        prod -> "";
+        dev  -> "{\"development\", " ++
+                    "{\"development@erlangwtd.com\", \"private-development\"}}."
+    end.
 
 get_erlang_hdr() ->
     "%% -*- erlang -*-".
@@ -378,6 +389,7 @@ clear_crunk() ->
 do_housekeeping() ->
     Dir = wtd_utils:get_root_dir(),
     ok  = clear_crunk(),
-    ok  = maybe_create_clefs(Dir).
+    ok  = maybe_create_clefs(Dir),
+    ok  = maybe_create_mission(Dir).
 
 

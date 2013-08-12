@@ -128,31 +128,26 @@ ping({Email, Name}, Missions, #epmd{
                {"date",         Date},
                {"accept",       "application/json"}],
     ContentType = "application/json",
-    JMissions = to_json(Missions),
-    Body = {[
-             {name,     {[
-                          {email, Email},
-                          {name,  Name}
-                         ]}
-             },
-             {missions, JMissions}
-           ]},
-    JBody = jiffy:encode(Body),
+    Body = base64:encode(bert:encode({{Email, Name}, Missions})),
     Path = "/",
     HTTPAuthHeader = hmac_api_lib:sign(PrivateKey, PublicKey, Method, Path,
                                        Headers, ContentType),
 
-    Request = {URL ++ Path, [HTTPAuthHeader | Headers], ContentType, JBody},
+    Request = {URL ++ Path, [HTTPAuthHeader | Headers], ContentType, Body},
     {Code, R2} = case httpc:request(Method, Request, [], []) of
-                     {ok, {{_, Cd, _}, _, R}} -> {Cd, jiffy:decode(R)};
-                     _                        -> {500, remote_error}
+                     {ok, {{_, Cd, _}, _, R}} ->
+                         {Cd, bert:decode(base64:decode(R))};
+                     Other ->
+                         io:format("Other is ~p~n", [Other]),
+                         {500, remote_error}
                  end,
     Status = case {Code, R2} of
-                 {200, {[{<<"ok">>, <<"authenticated">>}]}} ->
+                 {200, {ok, authenticated}} ->
                      authenticated;
-                 {403, {[{<<"error">>, Error}]}} ->
+                 {403, {error, Error}} ->
                      list_to_atom(binary_to_list(Error));
                  {500, remote_error} ->
+                     io:format("its a 500~n"),
                      remote_error;
                  O ->
                      io:format("Connection error ~p~n", [O]),
@@ -186,19 +181,3 @@ load_missions() ->
     Dir = wtd_utils:get_root_dir(),
     {ok, Missions} = file:consult(Dir ++ "/cbin/missions.wtd"),
     [#mission{name = N, public_key = P} || {N, P} <- Missions].
-
-to_json(List) -> {to_j2(List, [])}.
-
-to_j2([], Acc) ->
-    lists:reverse(Acc);
-to_j2([#mission{name = Mission, public_key = {Email, Name}} | T], Acc) ->
-    NewAcc = {mission, {[
-                         {name, Mission},
-                         {public_key, {[
-                                        {email, Email},
-                                        {name,  Name}
-                                       ]}
-                          }
-                        ]}
-             },
-        to_j2(T, [NewAcc | Acc]).
