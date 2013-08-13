@@ -9,7 +9,7 @@
 -module(development).
 
 -behaviour(gen_server).
--wtd_behaviour(development).
+-wtd_behaviour(dev_mission).
 
 %% API
 -export([
@@ -20,9 +20,10 @@
          test/0
          ]).
 
--wtd_export({development, [
-                           test/0
-                          ]
+-wtd_export({dev_mission,
+             [
+              test/0
+             ]
             }).
 
 %% gen_server callbacks

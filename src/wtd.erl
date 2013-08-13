@@ -147,7 +147,8 @@ combine([H | T], Acc) ->
 add_exports([], _FileName, Acc) ->
     Acc;
 add_exports([{{Name, Fns}, _} | T], FileNm, Acc) ->
-    NewE = #export{modulename = FileNm, fns = Fns},
+    NewFns = [{atom_to_list(F), Arity} || {F, Arity} <- Fns],
+    NewE = #export{modulename = atom_to_list(FileNm), fns = NewFns},
     M2 = case lists:keyfind(Name, 2, Acc) of
              #mission{} = M -> #mission{exports = E} = M,
                                Es = maybe_merge(NewE, E),
@@ -162,13 +163,13 @@ add_behaviours([], _FileName, _Behaviour, Acc) ->
 add_behaviours([{Name, _} | T], FileNm, Behaviour, Acc) ->
     Behav = case Behaviour of
                 []              -> none;
-                {supervisor, _} -> supervisor;
-                {gen_server, _} -> gen_server;
-                {gen_event,  _} -> gen_event;
-                {gen_fsm,    _} -> gen_fsm;
+                {supervisor, _} -> "supervisor";
+                {gen_server, _} -> "gen_server";
+                {gen_event,  _} -> "gen_event";
+                {gen_fsm,    _} -> "gen_fsm";
                 {_,          _} -> none
             end,
-    NewB = #behaviour{modulename = FileNm, behaviour = Behav},
+    NewB = #behaviour{modulename = atom_to_list(FileNm), behaviour = Behav},
     NewAcc = case Behav of
                  none ->
                      Acc;
@@ -310,10 +311,10 @@ maybe_create_clefs(Dir) ->
     [ok = write_if_doesnt_exist(X, default_clef()) || X <- Files],
     ok.
 
-maybe_create_mission(Dir) ->
+maybe_create_missions(Dir) ->
     Path = Dir ++ "/cbin/",
     File = Path ++ "missions.wtd",
-    ok = write_if_doesnt_exist(File, default_wtd()).
+    ok = write_if_doesnt_exist(File, default_missions()).
 
 write_if_doesnt_exist(FileName, Contents) ->
     ok = filelib:ensure_dir(FileName),
@@ -340,10 +341,10 @@ default_clef() ->
           end,
     io_lib:format(get_erlang_hdr() ++ Str, []).
 
-default_wtd() ->
+default_missions() ->
     case ?ENVIRONMENT of
         prod -> "";
-        dev  -> "{\"development\", " ++
+        dev  -> "{\"dev_mission\", " ++
                     "{\"development@erlangwtd.com\", \"private-development\"}}."
     end.
 
@@ -354,13 +355,13 @@ write_crunk([], _Dir) ->
     ok;
 write_crunk([#mission{} = M | T], Dir) ->
     #mission{name = NM, exports = EXP, behaviours = BHV} = M,
-    FileName = Dir ++ "/cbin/" ++ atom_to_list(NM) ++ ".crunk",
+    FileName = Dir ++ "cbin/wtd.crunk",
     ok = filelib:ensure_dir(FileName),
     Hdr = io_lib:format(get_erlang_hdr() ++ "~n", []),
-    Terms = lists:merge([EXP, BHV]),
+    Terms = {atom_to_list(NM), lists:merge([EXP, BHV])},
     Body = io_lib:format("~p.~n", [Terms]),
     Terms2 = lists:flatten([Hdr | Body]),
-    ok = file:write_file(FileName, Terms2),
+    ok = file:write_file(FileName, Terms2, [append]),
     write_crunk(T, Dir).
 
 compile_to_ast(File) -> case compile:file(File, [to_pp, binary]) of
@@ -407,6 +408,6 @@ do_housekeeping() ->
     Dir = wtd_utils:get_root_dir(),
     ok  = clear_crunk(),
     ok  = maybe_create_clefs(Dir),
-    ok  = maybe_create_mission(Dir).
+    ok  = maybe_create_missions(Dir).
 
 

@@ -9,7 +9,6 @@
                      {master, [
                                {domain,      "localhost"},
                                {epmd_port,   14152},
-                               {proxy_port,  14153},
                                {private_key, "b9a9-ddbb-c4c7-f109-5155-dc0c-6ac6-052c"}
                               ]
                      }

@@ -21,7 +21,8 @@
          tick/0,
          get_nodes/0,
          get_connections/0,
-         get_missions/0
+         get_exported_missions/0,
+         get_available_missions/0
         ]).
 
 %% gen_server callbacks
@@ -41,7 +42,6 @@
           name,
           domain,
           epmd_port,
-          proxy_port,
           public_key,
           private_key,
           wtd_node,
@@ -51,7 +51,9 @@
 
 -record(mission, {
           name,
-          public_key
+          public_key,
+          exports    = [],
+          behaviours = []
          }).
 
 -record(state, {
@@ -76,8 +78,11 @@ get_nodes() ->
 get_connections() ->
     gen_server:call(?SERVER, get_connections).
 
-get_missions() ->
+get_exported_missions() ->
     gen_server:call(?SERVER, get_exported_missions).
+
+get_available_missions() ->
+    gen_server:call(?SERVER, get_available_missions).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -106,6 +111,10 @@ handle_call(get_connections, _From, State) ->
 handle_call(get_exported_missions, _From, State) ->
     #state{exported_missions = Missions} = State,
     Reply = [{N, Pk} || #mission{name = N, public_key = Pk} <- Missions],
+    {reply, Reply, State};
+handle_call(get_available_missions, _From, State) ->
+    #state{epmds = EPMDs} = State,
+    Reply = EPMDs,
     {reply, Reply, State}.
 
 handle_cast(tick, State) ->
@@ -171,12 +180,10 @@ ping({Email, Name}, Missions, #epmd{
 make_epmd(PublicKey, WTDNode, {Name, List}) ->
     {domain,      DM}         = lists:keyfind(domain,      1, List),
     {epmd_port,   EPMDPort}   = lists:keyfind(epmd_port,   1, List),
-    {proxy_port,  ProxyPort}  = lists:keyfind(proxy_port,  1, List),
     {private_key, PrivateKey} = lists:keyfind(private_key, 1, List),
     #epmd{name        = Name,
           domain      = DM,
           epmd_port   = EPMDPort,
-          proxy_port  = ProxyPort,
           public_key  = PublicKey,
           private_key = PrivateKey,
           wtd_node    = WTDNode}.
@@ -193,4 +200,20 @@ load_epmds() ->
 load_exported_missions() ->
     Dir = wtd_utils:get_root_dir(),
     {ok, Missions} = file:consult(Dir ++ "/cbin/missions.wtd"),
-    [#mission{name = N, public_key = P} || {N, P} <- Missions].
+    {ok, Crunk}    = file:consult(Dir ++ "/cbin/wtd.crunk"),
+    Ms = [#mission{name = N, public_key = P} || {N, P} <- Missions],
+    [merge(X, Crunk) || X <- Ms].
+
+merge(#mission{name = N} = M, List) ->
+    case lists:keyfind(N, 1, List) of
+        false  -> M;
+        {N, V} -> merge2(V, M)
+    end.
+
+merge2([], Mission) -> Mission;
+merge2([{behaviour, Module, Behaviour} | T], M) ->
+    #mission{behaviours = Bs} = M,
+    merge2(T, M#mission{behaviours = [{Module, Behaviour} | Bs]});
+merge2([{export, Module, Fns} | T], M) ->
+    #mission{exports = Es} = M,
+    merge2(T, M#mission{exports = [{Module, Fns} | Es]}).
