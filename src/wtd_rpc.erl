@@ -20,6 +20,9 @@
 call(Node, Module, Fn, Arguments) when is_atom(Module)    andalso
                                        is_atom(Fn)        andalso
                                        is_list(Arguments) ->
+    Arity = length(Arguments),
+    Proxy = epmd_srv:get_proxy(Node, Module, Fn, Arity),
+    io:format("Proxy is ~p~n", [Proxy]),
     ok.
 
 %%%-----------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 [{erlang_wtd,
   [
    {erlangnodename, wtd},
-   {wtdnodename,    {"gordon@vixo.com", "dev lappie"}},
+   {wtdnodename,    {"gordonspi@vixo.com", "dev lappie"}},
    {environment,    dev},      % prod | dev
    {startup_debug,  true},
    {epmds,          [

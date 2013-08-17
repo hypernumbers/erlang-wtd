@@ -330,14 +330,14 @@ default_clef() ->
     Basic = "~n{{"
         ++ "\"master@erlangwtd.com\","
         ++ "\"public-getting-started\"},"
-        ++ "\"1111-2222-3333-4444-5555-6666-7777-8888\"}}.~n",
+        ++ "\"1111-2222-3333-4444-5555-6666-7777-8888\"}.~n",
     Str = case ?ENVIRONMENT of
               prod -> Basic;
               dev  -> {_, Key} = hmac_api_lib:get_api_keypair(),
                             Basic ++ "{{"
                                 ++ "\"development@erlangwtd.com\","
                                 ++ "\"private-development\"},"
-                                ++ "\"" ++ Key ++ "\"}}.~n"
+                                ++ "\"" ++ Key ++ "\"}.~n"
           end,
     io_lib:format(get_erlang_hdr() ++ Str, []).
 
