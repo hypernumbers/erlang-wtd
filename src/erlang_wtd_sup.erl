@@ -30,7 +30,8 @@ start_link() ->
 
 init([]) ->
 
-    EPMD = ?CHILD(epmd_srv, worker),
+    EPMD  = ?CHILD(epmd_srv, worker),
+    RxSup = ?CHILD(rx_sup,   supervisor),
 
-    {ok, { {one_for_one, 5, 10}, [EPMD]} }.
+    {ok, { {one_for_one, 5, 10}, [EPMD, RxSup]} }.
 

@@ -1,8 +1,8 @@
 %% -*- erlang -*-
 [{erlang_wtd,
   [
-   {erlangnodename, wtd},
-   {wtdnodename,    {"gordonspi@vixo.com", "dev lappie"}},
+   {nodename,       wtd},
+   {wtdname,        {"gordonspi@vixo.com", "dev lappie"}},
    {environment,    dev},      % prod | dev
    {startup_debug,  true},
    {epmds,          [

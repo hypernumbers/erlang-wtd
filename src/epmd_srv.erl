@@ -24,7 +24,10 @@
          get_exported_missions/0,
          get_available_missions/0,
          get_proxy/4,
-         get_proxy/2
+         get_proxy/2,
+         get_proxies/0,
+         get_outbound_private_key/1,
+         get_inbound_private_key/1
         ]).
 
 %% gen_server callbacks
@@ -86,6 +89,14 @@ get_proxy(Node, Module, Fn, Arity) ->
 get_proxy(Node, Behaviour) ->
     gen_server:call(?SERVER, {get_proxy, {Node, Behaviour}}).
 
+get_proxies() ->
+    gen_server:call(?SERVER, get_proxies).
+
+get_outbound_private_key(PublicKey) ->
+    gen_server:call(?SERVER, {get_private_key, {outbound, PublicKey}}).
+
+get_inbound_private_key(PublicKey) ->
+    gen_server:call(?SERVER, {get_private_key, {inbound, PublicKey}}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -128,6 +139,19 @@ handle_call({get_proxy, Resource}, _From, State) ->
     #state{epmds          = EPMDs,
            outbound_clefs = OClefs} = State,
     Reply = extract_proxy(EPMDs, OClefs, Resource),
+    {reply, Reply, State};
+handle_call(get_proxies, _From, State) ->
+    #state{epmds = EPMDs} = State,
+    Reply = [E#epmd.proxy || E <- EPMDs],
+    {reply, Reply, State};
+handle_call({get_private_key, {Type, PublicKey}}, _From, State) ->
+    #state{inbound_clefs  = IClefs,
+           outbound_clefs = OClefs} = State,
+    Clefs = case Type of
+                inbound  -> IClefs;
+                outbound -> OClefs
+            end,
+    {PublicKey, Reply} = lists:keyfind(PublicKey, 1, Clefs),
     {reply, Reply, State}.
 
 handle_cast(tick, State) ->
@@ -135,8 +159,9 @@ handle_cast(tick, State) ->
            exported_missions = Missions,
            epmds             = EPMDs} = State,
     {ok, _} = timer:apply_after(?TICK, epmd_srv, tick, []),
-    NewEPMDS = [ping(Name, Missions, X) || X <- EPMDs],
-    {noreply, State#state{epmds = NewEPMDS}}.
+    NewEPMDs = [ping(Name, Missions, X) || X <- EPMDs],
+    ok = sync_rx(NewEPMDs),
+    {noreply, State#state{epmds = NewEPMDs}}.
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -152,28 +177,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 ping({Email, Name}, Missions, #epmd{proxy = P} = EPMD) ->
-    #proxy{domain      = Domain,
-           epmd_port   = EPMDPort,
-           public_key  = PublicKey,
-           private_key = PrivateKey} = P,
-    URL = "http://" ++ Domain ++ ":" ++ integer_to_list(EPMDPort),
-    Method = post,
-    Date = dh_date:format("D, j M Y H:i:s"),
-    Headers = [{"content-type", "application/json"},
-               {"date",         Date},
-               {"accept",       "application/json"}],
-    ContentType = "application/json",
-    Body = base64:encode(bert:encode({{Email, Name}, Missions})),
     Path = "/",
-    HTTPAuthHeader = hmac_api_lib:sign(PrivateKey, PublicKey, Method, Path,
-                                       Headers, ContentType),
-
-    Request = {URL ++ Path, [HTTPAuthHeader | Headers], ContentType, Body},
-    {Code, R2} = case httpc:request(Method, Request, [], []) of
+    Body = base64:encode(bert:encode({{Email, Name}, Missions})),
+    {Code, R2} = case  wtd_utils:make_http_req(P, Path, Body) of
                      {ok, {{_, Cd, _}, _, R}} ->
                          {Cd, bert:decode(base64:decode(R))};
-                     Other ->
-                         io:format("Other is ~p~n", [Other]),
+                     RemErr ->
+                         io:format("Remote Error is ~p~n", [RemErr]),
                          {500, remote_error}
                  end,
     {Status, Ms} = case {Code, R2} of
@@ -183,7 +193,6 @@ ping({Email, Name}, Missions, #epmd{proxy = P} = EPMD) ->
                            io:format("Error is ~p~n", [Error]),
                            {list_to_atom(Error), dict:new()};
                        {500, remote_error} ->
-                           io:format("its a 500~n"),
                            {remote_error, dict:new()};
                        O ->
                            io:format("Connection error ~p~n", [O]),
@@ -192,13 +201,13 @@ ping({Email, Name}, Missions, #epmd{proxy = P} = EPMD) ->
     EPMD#epmd{status = Status, available_missions = Ms}.
 
 get_name() ->
-    {ok, WTDNodeName} = application:get_env(erlang_wtd, wtdnodename),
-    WTDNodeName.
+    {ok, Wtdname} = application:get_env(erlang_wtd, wtdname),
+    Wtdname.
 
 load_epmds() ->
     {ok, Config} = application:get_env(erlang_wtd, epmds),
-    {ok, {Public, WTDNode}} = application:get_env(erlang_wtd, wtdnodename),
-    _EPMDs = [make_epmd(Public, WTDNode, X) || X <- Config].
+    {ok, {PublicKey, WTDNode}} = application:get_env(erlang_wtd, wtdname),
+    _EPMDs = [make_epmd({PublicKey, WTDNode}, X) || X <- Config].
 
 load_exported_missions() ->
     Dir = wtd_utils:get_root_dir(),
@@ -213,16 +222,15 @@ load_clefs() ->
     {ok, Out} = file:consult(Dir ++ "/cbin/outbound.clef"),
     {In, Out}.
 
-make_epmd(PublicKey, WTDNode, {Name, List}) ->
+make_epmd({PublicKey, WTDName}, {Name, List}) ->
     {domain,      DM}         = lists:keyfind(domain,      1, List),
     {epmd_port,   EPMDPort}   = lists:keyfind(epmd_port,   1, List),
     {private_key, PrivateKey} = lists:keyfind(private_key, 1, List),
     Proxy = #proxy{name        = Name,
                    domain      = DM,
                    epmd_port   = EPMDPort,
-                   public_key  = PublicKey,
                    private_key = PrivateKey,
-                   wtd_node    = WTDNode},
+                   wtd_node    = {PublicKey, WTDName}},
     #epmd{proxy = Proxy}.
 
 merge(#mission{name = N} = M, List) ->
@@ -244,9 +252,13 @@ extract_proxy([], _OutboundClefs, _Resource) ->
 extract_proxy([H  | T], OutboundClefs, Resource) ->
     #epmd{available_missions = AM,
           status             = Status} = H,
-    case in_missions(AM, OutboundClefs, Resource) of
-        {true, M}  -> {H#epmd.proxy, M};
-        false      -> extract_proxy(T, OutboundClefs, Resource)
+    case Status of
+        authenticated ->
+            case in_missions(AM, OutboundClefs, Resource) of
+                {true, M}  -> {ok, {H#epmd.proxy, M}};
+                false      -> extract_proxy(T, OutboundClefs, Resource)
+            end;
+        Other -> {error, Other}
     end.
 
 in_missions([], _, _) ->
@@ -262,7 +274,7 @@ in_missions([{Node, {AllMissions, _}} | T], OutboundClefs, {Node, Behaviour}) ->
     %% io:format("AllMissions is ~p~nMissions is ~p~nOutboundClefs is ~p~n",
     %%           [AllMissions, Missions, OutboundClefs]),
     in_missions(T, OutboundClefs, {Node, Behaviour});
-in_missions([H | T], OutboundClefs, Resource) ->
+in_missions([_H | T], OutboundClefs, Resource) ->
     in_missions(T, OutboundClefs, Resource).
 
 matching(Missions, OutboundClefs) ->
@@ -272,15 +284,15 @@ matching2([], _OutboundClefs, Acc) ->
     lists:reverse(Acc);
 matching2([#mission{public_key = PubK} = M | T], OutboundClefs, Acc) ->
     NewAcc  = case lists:keyfind(PubK, 1, OutboundClefs) of
-                  {PubK, PrivK} -> [M | Acc];
-                  false         -> Acc
+                  {PubK, _PrivK} -> [M | Acc];
+                  false          -> Acc
               end,
     matching2(T, OutboundClefs, NewAcc).
 
 exports([], _Mod, _Fn, _Arity) ->
     false;
 exports([#mission{public_key = PubK,
-                  exports = Ex} = M | T], Mod, Fn, Arity) ->
+                  exports    = Ex} | T], Mod, Fn, Arity) ->
     case lists:keyfind(Mod, 1, Ex) of
         {Mod, Fns}  -> case lists:member({Fn, Arity}, Fns) of
                            true  -> PubK;
@@ -289,3 +301,51 @@ exports([#mission{public_key = PubK,
         false       -> exports(T, Mod, Fn, Arity)
     end.
 
+sync_rx(EPMDs) ->
+    Proxies = [E#epmd.proxy || E <- EPMDs,
+                               E#epmd.status =:= authenticated],
+    RxSrvs = [Name || {Name, _ , _ , _} <- supervisor:which_children(rx_sup)],
+    Start = not_started(Proxies, RxSrvs),
+    Stop  = not_connected(Proxies, RxSrvs),
+    ok = rx_start(Start),
+    ok = rx_stop(Stop).
+
+not_started(Proxies, RxSrvs) ->
+    not_st2(Proxies, RxSrvs, []).
+
+not_st2([], _RxSrvs, Acc) ->
+    lists:reverse(Acc);
+not_st2([#proxy{name = N} = H | T], RxSrvs, Acc) ->
+    case lists:member(N, RxSrvs) of
+        true  -> not_st2(T, RxSrvs, Acc);
+        false -> not_st2(T, RxSrvs, [H | Acc])
+    end.
+
+not_connected(Proxies, RxSrvs) ->
+    not_cn2(RxSrvs, Proxies, []).
+
+not_cn2([], _Proxies, Acc) ->
+    lists:reverse(Acc);
+not_cn2([H | T], Proxies, Acc) ->
+    case lists:keymember(H, #proxy.name, Proxies) of
+        true  -> not_cn2(T, Proxies, Acc);
+        false -> not_cn2(T, Proxies, [H | Acc])
+    end.
+
+rx_start([]) ->
+    ok;
+rx_start([#proxy{name = N} = H | T]) ->
+    Spec = {N, {rx_srv, start_link, [H]},
+            permanent,
+            5000,
+            worker,
+            [rx_srv]},
+    {ok, _Pid} = supervisor:start_child(rx_sup, Spec),
+    rx_start(T).
+
+rx_stop([]) ->
+    ok;
+rx_stop([H | T]) ->
+    ok = supervisor:terminate_child(rx_sup, H),
+    ok = supervisor:delete_child(rx_sup, H),
+    rx_stop(T).
