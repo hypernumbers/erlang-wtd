@@ -43,7 +43,6 @@ end.
 %%%
 %%%-----------------------------------------------------------------------------
 make_signed_req(Request, PubK, PrivK) ->
-    io:format("Request is ~p~n", [Request]),
     Req = base64:encode(bert:encode(Request)),
     Sig = wtd_utils:sign_string(Req, PrivK),
     #signed_request{public_key = PubK,

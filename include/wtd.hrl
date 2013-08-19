@@ -9,6 +9,7 @@
                 wtd_node}).
 
 -record(signed_request, {public_key,
+                         ack        = wtd_utils:get_ack(),
                          signature,
                          request}).
 

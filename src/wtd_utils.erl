@@ -11,10 +11,14 @@
          get_root_dir/0,
          proxy_rec_to_list/1,
          sign_string/2,
-         make_http_req/3
+         make_http_req/3,
+         get_ack/0
         ]).
 
 -include("wtd.hrl").
+
+-define(MEGA, 1000000000000).
+-define(SEC,  1000000).
 
 get_root_dir() ->
     filename:dirname(code:where_is_file("erlang_wtd.app")) ++ "/../".
@@ -41,6 +45,10 @@ make_http_req(Proxy, Path, Body) ->
     Request = {URL ++ Path, [HTTPAuthHeader | Headers], ContentType, Body},
     httpc:request(Method, Request, [], []).
 
+get_ack() ->
+    {Mega, Sec, Micro} = now(),
+    "ack" ++ integer_to_list(?MEGA * Mega + ?SEC * Sec + Micro).
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -51,3 +59,4 @@ standard_content_type_and_hdrs(Hdrs) when is_list(Hdrs) ->
                {"accept",       "application/json"}],
     ContentType = "application/json",
     {ContentType, Hdrs ++ Headers}.
+
