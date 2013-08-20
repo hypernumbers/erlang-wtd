@@ -47,7 +47,7 @@ make_signed_req(Request, PubK, PrivK) ->
     Sig = wtd_utils:sign_string(Req, PrivK),
     #signed_request{public_key = PubK,
                     signature  = Sig,
-                    request    = Request}.
+                    body       = Request}.
 
 send_rpc(Proxy, Request) when is_record(Proxy, proxy)            andalso
                               is_record(Request, signed_request) ->

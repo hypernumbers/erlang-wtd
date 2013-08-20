@@ -150,10 +150,10 @@ The underlying structure of the communication architecture focusses on making it
 
 All communications (server to proxy and server to server) are digitically signed using public-private key pairs:
 
-           Signed Tx          Signed Rx
-Server 1 ----------> Proxy <------------ Server 2
-         ------------------------------->
-                 Different Signature
+               Signed Tx          Signed Rx
+    Server 1 ----------> Proxy <------------ Server 2
+             ------------------------------->
+                     Different Signature
 
 EPMD And Discovery
 ------------------
@@ -167,46 +167,46 @@ WTD Calls
 
 Synchronous calls are implemented asynchronously with timeouts:
 
-Calling      Caller       Caller   |   Proxy  |    Callee       Callee
-Process     Tx Server    Rx Server |   Cache  |   Rx Server    Tx Server
-                                   |          |
-rpc ---------> Store               |          |
-    <--------  PID                 |          |
-hang in                            |          |
-receive                            |          |
-              ---------------------|---->     |    Long
-              <--------------------|-----     |    Poll
-                                   |    <-----|-----
-                                   |    ------|---->
-                                   |          | apply(M, F, A)
-                           Long    |          |       ------------->
-                           Poll    |    <-----|---------------------
-                            -------|---->     |
-                            <------|-----     |
-              <-------------       |          |
-              Ping                 |          |
- <------------                     |          |
- handle msg                        |          |
-(or timeout)                       |          |
+    Calling      Caller       Caller   |   Proxy  |    Callee       Callee
+    Process     Tx Server    Rx Server |   Cache  |   Rx Server    Tx Server
+                                       |          |
+    rpc ---------> Store               |          |
+        <--------  PID                 |          |
+    hang in                            |          |
+    receive                            |          |
+                  ---------------------|---->     |    Long
+                  <--------------------|-----     |    Poll
+                                       |    <-----|-----
+                                       |    ------|---->
+                                       |          | apply(M, F, A)
+                               Long    |          |       ------------->
+                               Poll    |    <-----|---------------------
+                                -------|---->     |
+                                <------|-----     |
+                  <-------------       |          |
+                  Ping                 |          |
+     <------------                     |          |
+     handle msg                        |          |
+    (or timeout)                       |          |
 
 The message signatures are:
 
-#signed_request{ack  = Ack,
-                body = #request{}} ----->
+    #signed_request{ack  = Ack,
+                    body = #request{}} ----->
 
-                                     <---- #signed_request{ack = Ack,
-                                                           body = #response{}}
+                                         <---- #signed_request{ack = Ack,
+                                                               body = #response{}}
 The Ack response has to match.
 
 Asynchonous calls are handled as below:
 
-Calling      Caller       Caller   |   Proxy  |    Callee       Callee
-Process     Tx Server    Rx Server |   Cache  |   Rx Server    Tx Server
-                                   |          |
-rpc --------->                     |          |
-    <--------                      |          |
-              ---------------------|---->     |    Long
-              <--------------------|-----     |    Poll
-                                   |    <-----|-----
-                                   |    ------|---->
-                                   |          | apply(M, F, A)
+    Calling      Caller       Caller   |   Proxy  |    Callee       Callee
+    Process     Tx Server    Rx Server |   Cache  |   Rx Server    Tx Server
+                                       |          |
+    rpc --------->                     |          |
+        <--------                      |          |
+                  ---------------------|---->     |    Long
+                  <--------------------|-----     |    Poll
+                                       |    <-----|-----
+                                       |    ------|---->
+                                       |          | apply(M, F, A)
