@@ -105,3 +105,108 @@ Contributing To (Erlang) WTD
 -----------------------------
 
 It is probably a bit early for anyone else to contribute as the basic core isn't working. But when it is, you will want to edit the ``BEHAVIOUR`` macro in ``wtd.erl`` and set it to ``dev`` from ``prod``.
+
+How To Use WTD
+--------------
+
+There are two custom attributes that exposes services to wtd. Example of them can be seen in the module development.erl which is in priv/examples
+
+The first attribute is a wtd_export attributes which says I wish other people to be able to call these fns via wtd. Its syntax is:
+
+    -wtd_export({mission_name, [
+                                some_fn/0
+                                another_fn/3
+                               ]).
+
+Every function tha is exported via wtd_export must also be exported. The mission name value is used to group together functions from many modules - and other erlang_wtd servers are granted rights to complete missions.
+
+The second attributes describes how people can access OTP features across the cluster:
+
+    -wtd_behaviour(mission_name).
+
+The module must have one of the canonical OTP behaviours to use this attribute:
+
+* supervisor
+* gen_server
+* gen_event
+* gen_fsm
+
+These missions can then be bound to public/private keypairs - anyone who has those keys can invoke the fuctions.
+
+In addition the security layer is 'leaky'. If someone calls a wtd function remotely and passes a Pid into the API they implicitly give permission for processes on the called side of the relationship to send messages to that PID.
+
+Restrictions
+------------
+
+There are restrictions on how the API works:
+
+* Pid's are not tranmitted over the wire - a proxy billet-doux record is sent and a proxy process is started on the remote site. Messages sent to that process are sent back.
+* Fns cannot be sent over the wire - passing a fn into a function call will cause a fatal crash in the calling process.
+
+Architecture
+------------
+
+The underlying structure of the communication architecture focusses on making it possible for learners with Raspberry PIs at home to make clusters with friends. Two machines in a cluster communicate via a proxy server - which also broadcasts details of connected machines, the services ('missions') they offer and the public keys they will accept connections from.
+
+All communications (server to proxy and server to server) are digitically signed using public-private key pairs:
+
+           Signed Tx          Signed Rx
+Server 1 ----------> Proxy <------------ Server 2
+         ------------------------------->
+                 Different Signature
+
+EPMD And Discovery
+------------------
+
+Before using a proxy the WTD server needs to register an email with it and receive a private key in return.
+
+After that a WTD machine ping polls the EPMD server every second and receives the current offered services back.
+
+WTD Calls
+---------
+
+Synchronous calls are implemented asynchronously with timeouts:
+
+Calling      Caller       Caller   |   Proxy  |    Callee       Callee
+Process     Tx Server    Rx Server |   Cache  |   Rx Server    Tx Server
+                                   |          |
+rpc ---------> Store               |          |
+    <--------  PID                 |          |
+hang in                            |          |
+receive                            |          |
+              ---------------------|---->     |    Long
+              <--------------------|-----     |    Poll
+                                   |    <-----|-----
+                                   |    ------|---->
+                                   |          | apply(M, F, A)
+                           Long    |          |       ------------->
+                           Poll    |    <-----|---------------------
+                            -------|---->     |
+                            <------|-----     |
+              <-------------       |          |
+              Ping                 |          |
+ <------------                     |          |
+ handle msg                        |          |
+(or timeout)                       |          |
+
+The message signatures are:
+
+#signed_request{ack  = Ack,
+                body = #request{}} ----->
+
+                                     <---- #signed_request{ack = Ack,
+                                                           body = #response{}}
+The Ack response has to match.
+
+Asynchonous calls are handled as below:
+
+Calling      Caller       Caller   |   Proxy  |    Callee       Callee
+Process     Tx Server    Rx Server |   Cache  |   Rx Server    Tx Server
+                                   |          |
+rpc --------->                     |          |
+    <--------                      |          |
+              ---------------------|---->     |    Long
+              <--------------------|-----     |    Poll
+                                   |    <-----|-----
+                                   |    ------|---->
+                                   |          | apply(M, F, A)
