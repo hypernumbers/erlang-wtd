@@ -1,23 +1,22 @@
 %%%-------------------------------------------------------------------
 %%% @author    Gordon Guthrie
 %%% @copyright Goron Guthrie
-%%% @doc       The Rx server
-%%%            handling receiving info
+%%% @doc       The Tx server transmitting requests
 %%%
 %%% @end
 %%% Created : 18 Aug 2013 by gordon@vixo.com
 %%%-------------------------------------------------------------------
--module(rx_srv).
+-module(tx_srv).
 
 -behaviour(gen_server).
 
 %% API
 -export([
-         start_link/1
+         start_link/0
         ]).
 
 -export([
-         connect/0
+         send/2
         ]).
 
 %% gen_server callbacks
@@ -32,47 +31,32 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {proxy,
-                wtdname}).
+-record(state, {requests = dict:new()}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-start_link(Proxy) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Proxy], []).
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-connect() ->
-    gen_server:cast(?SERVER, connect).
+send(Proxy, Request) ->
+    gen_server:call(?SERVER, {send, {Proxy, Request}}).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([Proxy]) ->
-    {ok, Wtdname} = application:get_env(erlang_wtd, wtdname),
-    timer:apply_after(250, rx_srv, connect, []),
-    {ok, #state{proxy   = Proxy,
-                wtdname = Wtdname}}.
+init([]) ->
+    io:format("Tx server starting...~n"),
+    {ok, #state{}}.
 
-handle_call(_Msg, _From, State) ->
-
+handle_call({send, {Proxy, Request}}, _From, State) ->
+    NewState = handle_send(Proxy, Request, State),
     Reply = ok,
-    {reply, Reply, State}.
+    {reply, Reply, NewState}.
 
-handle_cast(connect, #state{proxy   = P,
-                            wtdname = Wtdname} = State) ->
-    Body = base64:encode(bert:encode(Wtdname)),
-    Path = "/rx/",
-    {Code, R2} = case  wtd_utils:make_http_req(P, Path, Body) of
-                     {ok, {{_, Cd, _}, _, R}} ->
-                         {Cd, bert:decode(base64:decode(R))};
-                     RemErr ->
-                         io:format("Remote Error is ~p~n", [RemErr]),
-                         {500, remote_error}
-                 end,
-    io:format("Code is ~p~nR2 is ~p~n", [Code, R2]),
-    timer:apply_after(2000, rx_srv, connect, []),
+handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info(_Info, State) ->
@@ -87,3 +71,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+handle_send(Proxy, Request, State) ->
+    io:format("Proxy is ~p~nRequest is ~p~n", [Proxy, Request]),
+    State.

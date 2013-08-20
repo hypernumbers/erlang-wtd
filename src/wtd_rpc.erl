@@ -51,6 +51,7 @@ make_signed_req(Request, PubK, PrivK) ->
 
 send_rpc(Proxy, Request) when is_record(Proxy, proxy)            andalso
                               is_record(Request, signed_request) ->
+    ok = tx_srv:send(Proxy, Request),
     Path = "/tx/",
     BRequest = base64:encode(bert:encode(Request)),
     case wtd_utils:make_http_req(Proxy, Path, BRequest) of
