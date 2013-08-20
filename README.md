@@ -1,3 +1,5 @@
+<img src='https://raw.github.com/hypernumbers/erlang-wtd/master/priv/images/erlang-wtd.png' />
+
 Status
 ------
 
@@ -113,16 +115,20 @@ There are two custom attributes that exposes services to wtd. Example of them ca
 
 The first attribute is a wtd_export attributes which says I wish other people to be able to call these fns via wtd. Its syntax is:
 
+```erlang
     -wtd_export({mission_name, [
                                 some_fn/0
                                 another_fn/3
                                ]).
+```
 
 Every function tha is exported via wtd_export must also be exported. The mission name value is used to group together functions from many modules - and other erlang_wtd servers are granted rights to complete missions.
 
 The second attributes describes how people can access OTP features across the cluster:
 
+```erlang
     -wtd_behaviour(mission_name).
+```
 
 The module must have one of the canonical OTP behaviours to use this attribute:
 
