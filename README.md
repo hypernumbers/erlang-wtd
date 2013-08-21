@@ -17,7 +17,7 @@ To make it easy for beginners to start learning to write clustered, distributed 
 
 Watch a presentation about it here.
 
-<iframe src='http://prezi.com/o_-v6_pkho6k/?utm_campaign=share&utm_medium=copy' />
+<iframe src='http://prezi.com/o_-v6_pkho6k/?utm_campaign=share&utm_medium=copy'></iframe>
 
 Definitions
 -----------
