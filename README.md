@@ -15,9 +15,7 @@ Mission
 
 To make it easy for beginners to start learning to write clustered, distributed applications on cheap commondity hardware like Raspberry Pis and low-end laptops.
 
-Watch a presentation about it here.
-
-<iframe src='http://prezi.com/o_-v6_pkho6k/?utm_campaign=share&utm_medium=copy'></iframe>
+Watch the <a src='http://prezi.com/o_-v6_pkho6k/?utm_campaign=share&utm_medium=copy'>presentation</a>.
 
 Definitions
 -----------
