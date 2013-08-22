@@ -217,3 +217,8 @@ Asynchonous calls are handled as below:
                                        |    <-----|-----
                                        |    ------|---->
                                        |          | apply(M, F, A)
+
+If You Have Read This Far
+=========================
+Follow me on Twitter @gordonguthrie
+Fork this repo and get hacking
