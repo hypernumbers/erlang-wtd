@@ -1,0 +1,45 @@
+%% this is a manifest file for the Stal Erlang Project Index
+% Stal is hosted at http://erlangotp.com
+{stal_conf_version, 1}.
+
+%% Project Details
+%% these are designed to help people find the software they need
+{name, "Erlang-WTD"}.
+{project_version, "0.1.0"}.
+{license, "MIT"}.
+{description, "Assymmetric Clustering For Erlang"}.
+{details, "An assymetric clustering mechanism for building untrusted Erlang clusters on the open internet - designed to be used instead of native Erlang clustering."}.
+{tags, ["WTD", "World Total Domination", "clustering"]}.
+{status, "alpha"}. % alpha | beta | production
+
+%% Required contact details
+{url, "http://github.com/hypernumbers/erlang-wtd"}.
+
+%% Optional contact details
+% {irc, ""}. % optional
+{maintainers, [
+               [
+                {name,    "Gordon Guthrie"},
+                {email,   "gordon@hypernumbers.com"},
+                {twitter, "@gordonguthrie"}
+               ]
+              ]}. %optional
+% {project_homepage, ""}. % optional
+
+%% How to include this code in your project
+%% are there other build system that need to be represented?
+%% what about Elixir ones?
+%% or LFe ones?
+%% or Joxa ones?
+{rebar, "*", {, {git, "git://github.com/hypernumbers/erlang-wtd.git","master"}}}.
+% {'erlang.mk', ??}. % Erlang build script
+% {'mix.exs' ??}. % Elixir package manager
+% {'expm', ??}. % Elixir package manager
+{scm, "git clone https://github.com/hypernumbers/erlang-wtd.git"}.
+
+%% Some terms to control usage of this manifest by Stal
+{stal_include, true}.
+{stal_deprecated, false}.
+% {stal_superseded_by, "foo/bar"}. % optional
+
+%% Are there other manifest systems that might want to pull these terms in?
